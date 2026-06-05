@@ -1,0 +1,39 @@
+[project]
+name = "ai-travel-agent"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Nishra Gajkandh",email = "nishragajkandh@gmail.com"}
+]
+readme = "README.md"
+requires-python = "^3.11"
+dependencies = [
+    "langchain (>=1.3.4,<2.0.0)",
+    "langchain-ollama (>=1.1.0,<2.0.0)",
+    "langgraph (>=1.2.4,<2.0.0)",
+    "pydantic (>=2.13.4,<3.0.0)",
+    "fastapi (>=0.136.3,<0.137.0)",
+    "uvicorn (>=0.49.0,<0.50.0)",
+    "python-dotenv (>=1.2.2,<2.0.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "aiohttp (>=3.14.0,<4.0.0)",
+    "requests (>=2.34.2,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.0.3,<10.0.0)",
+    "pytest-asyncio (>=1.4.0,<2.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)",
+    "black (>=26.5.1,<27.0.0)",
+    "ruff (>=0.15.16,<0.16.0)",
+    "mypy (>=2.1.0,<3.0.0)",
+    "pre-commit (>=4.6.0,<5.0.0)",
+    "ipython (>=9.14.1,<10.0.0)",
+    "jupyter (>=1.1.1,<2.0.0)"
+]
