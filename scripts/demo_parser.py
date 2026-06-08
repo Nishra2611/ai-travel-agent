@@ -6,10 +6,6 @@ from src.parsers.preference_parser import PreferenceParserTool
 
 tool = PreferenceParserTool()
 
-result = tool.invoke(
-    {
-        "user_input": "Paris 5 days $3000"
-    }
-)
+result = tool.invoke({"user_input": "Paris 5 days $3000"})
 
 print(result)
