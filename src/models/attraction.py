@@ -1,12 +1,11 @@
-from enum import Enum
-from typing import List, Optional
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 from src.models.hotel import GeoLocation
 
 
-class AttractionCategory(str, Enum):
+class AttractionCategory(StrEnum):
     MUSEUM = "museum"
     LANDMARK = "landmark"
     RESTAURANT = "restaurant"
@@ -17,13 +16,13 @@ class AttractionCategory(str, Enum):
 
 
 class OpeningHours(BaseModel):
-    monday: Optional[str] = None
-    tuesday: Optional[str] = None
-    wednesday: Optional[str] = None
-    thursday: Optional[str] = None
-    friday: Optional[str] = None
-    saturday: Optional[str] = None
-    sunday: Optional[str] = None
+    monday: str | None = None
+    tuesday: str | None = None
+    wednesday: str | None = None
+    thursday: str | None = None
+    friday: str | None = None
+    saturday: str | None = None
+    sunday: str | None = None
 
 
 class Attraction(BaseModel):
@@ -36,30 +35,18 @@ class Attraction(BaseModel):
 
     address: str
 
-    rating: Optional[float] = Field(
-        None,
-        ge=0,
-        le=5
-    )
+    rating: float | None = Field(None, ge=0, le=5)
 
-    review_count: Optional[int] = None
+    review_count: int | None = None
 
-    estimated_duration_hours: float = Field(
-        default=2.0,
-        gt=0
-    )
+    estimated_duration_hours: float = Field(default=2.0, gt=0)
 
-    entry_price_usd: Optional[float] = Field(
-        None,
-        ge=0
-    )
+    entry_price_usd: float | None = Field(None, ge=0)
 
-    opening_hours: Optional[OpeningHours] = None
+    opening_hours: OpeningHours | None = None
 
     booking_required: bool = False
 
-    website: Optional[str] = None
+    website: str | None = None
 
-    tags: List[str] = Field(
-        default_factory=list
-    )
+    tags: list[str] = Field(default_factory=list)

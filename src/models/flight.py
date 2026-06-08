@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,31 +15,21 @@ class FlightSegment(BaseModel):
 
 class FlightOption(BaseModel):
     id: str
-    segments: List[FlightSegment]
+    segments: list[FlightSegment]
 
-    total_price_usd: float = Field(
-        ...,
-        gt=0
-    )
+    total_price_usd: float = Field(..., gt=0)
 
-    currency: str = Field(
-        default="USD"
-    )
+    currency: str = Field(default="USD")
 
-    cabin_class: str = Field(
-        default="ECONOMY"
-    )
+    cabin_class: str = Field(default="ECONOMY")
 
-    seats_available: Optional[int] = None
-    booking_url: Optional[str] = None
-    amadeus_offer_id: Optional[str] = None
+    seats_available: int | None = None
+    booking_url: str | None = None
+    amadeus_offer_id: str | None = None
 
     @property
     def total_duration_minutes(self) -> int:
-        return sum(
-            segment.duration_minutes
-            for segment in self.segments
-        )
+        return sum(segment.duration_minutes for segment in self.segments)
 
     @property
     def num_stops(self) -> int:
