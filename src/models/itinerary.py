@@ -1,6 +1,5 @@
 from datetime import date, time
-from enum import Enum
-from typing import List, Optional
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +7,7 @@ from src.models.flight import FlightOption
 from src.models.hotel import HotelOption
 
 
-class TimeSlot(str, Enum):
+class TimeSlot(StrEnum):
     MORNING = "morning"
     AFTERNOON = "afternoon"
     EVENING = "evening"
@@ -17,44 +16,33 @@ class TimeSlot(str, Enum):
 class ItineraryActivity(BaseModel):
     time_slot: TimeSlot
 
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
+    start_time: time | None = None
+    end_time: time | None = None
 
-    attraction_id: Optional[str] = None
+    attraction_id: str | None = None
 
     title: str
     description: str
     location_name: str
 
-    estimated_cost_usd: float = Field(
-        default=0.0,
-        ge=0
-    )
+    estimated_cost_usd: float = Field(default=0.0, ge=0)
 
-    travel_time_to_next_minutes: Optional[int] = None
-    notes: Optional[str] = None
+    travel_time_to_next_minutes: int | None = None
+    notes: str | None = None
 
 
 class DayPlan(BaseModel):
     date: date
 
-    day_number: int = Field(
-        ...,
-        ge=1
-    )
+    day_number: int = Field(..., ge=1)
 
-    theme: Optional[str] = None
+    theme: str | None = None
 
-    activities: List[ItineraryActivity] = Field(
-        default_factory=list
-    )
+    activities: list[ItineraryActivity] = Field(default_factory=list)
 
-    daily_budget_usd: float = Field(
-        default=0.0,
-        ge=0
-    )
+    daily_budget_usd: float = Field(default=0.0, ge=0)
 
-    weather_forecast: Optional[str] = None
+    weather_forecast: str | None = None
 
 
 class Itinerary(BaseModel):
@@ -65,31 +53,21 @@ class Itinerary(BaseModel):
     start_date: date
     end_date: date
 
-    num_travelers: int = Field(
-        ...,
-        ge=1
-    )
+    num_travelers: int = Field(..., ge=1)
 
-    days: List[DayPlan] = Field(
-        default_factory=list
-    )
+    days: list[DayPlan] = Field(default_factory=list)
 
-    outbound_flight: Optional[FlightOption] = None
-    return_flight: Optional[FlightOption] = None
-    hotel: Optional[HotelOption] = None
+    outbound_flight: FlightOption | None = None
+    return_flight: FlightOption | None = None
+    hotel: HotelOption | None = None
 
-    total_cost_usd: float = Field(
-        default=0.0,
-        ge=0
-    )
+    total_cost_usd: float = Field(default=0.0, ge=0)
 
-    budget_usd: Optional[float] = None
+    budget_usd: float | None = None
 
     generated_at: str = ""
 
-    version: int = Field(
-        default=1
-    )
+    version: int = Field(default=1)
 
     @property
     def is_within_budget(self) -> bool:

@@ -1,18 +1,22 @@
 from datetime import date
-from enum import Enum
-from typing import List, Optional
+from enum import StrEnum
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+)
 
 
-from pydantic import BaseModel, Field, field_validator
-
-
-class TravelStyle(str, Enum):
+class TravelStyle(StrEnum):
     BUDGET = "budget"
     MODERATE = "moderate"
     LUXURY = "luxury"
 
 
-class ActivityType(str, Enum):
+class ActivityType(StrEnum):
     CULTURE = "culture"
     ADVENTURE = "adventure"
     RELAXATION = "relaxation"
@@ -24,77 +28,75 @@ class ActivityType(str, Enum):
 class TravelPreferences(BaseModel):
     destination: str = Field(
         ...,
-        description="City or country to visit"
+        description="City or country to visit",
     )
 
-    origin: Optional[str] = Field(
-        None,
-        description="Departure city"
+    origin: str | None = Field(
+        default=None,
+        description="Departure city",
     )
 
     duration_days: int = Field(
         ...,
         ge=1,
         le=30,
-        description="Trip length"
+        description="Trip length",
     )
 
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date | None = None
+    end_date: date | None = None
 
-    budget_usd: Optional[float] = Field(
+    budget_usd: float | None = Field(
         None,
         gt=0,
-        description="Total budget"
+        description="Total budget",
     )
 
     num_travelers: int = Field(
         default=1,
         ge=1,
-        le=20
+        le=20,
     )
 
     travel_style: TravelStyle = Field(
-        default=TravelStyle.MODERATE
+        default=TravelStyle.MODERATE,
     )
 
-    activity_types: List[ActivityType] = Field(
-        default_factory=list
+    activity_types: list[ActivityType] = Field(
+        default_factory=list,
     )
 
-    dietary_restrictions: List[str] = Field(
-        default_factory=list
+    dietary_restrictions: list[str] = Field(
+        default_factory=list,
     )
 
-    accommodation_preferences: List[str] = Field(
-        default_factory=list
+    accommodation_preferences: list[str] = Field(
+        default_factory=list,
     )
 
     raw_input: str = Field(
         ...,
-        description="Original user message"
+        description="Original user message",
     )
 
     confidence_score: float = Field(
         default=1.0,
         ge=0.0,
-        le=1.0
+        le=1.0,
     )
 
     @field_validator("end_date")
     @classmethod
-    def end_after_start(cls, v, info):
+    def validate_dates(
+        cls,
+        v: date | None,
+        info: ValidationInfo,
+    ) -> date | None:
         start_date = info.data.get("start_date")
 
         if v and start_date and v <= start_date:
-            raise ValueError(
-                "end_date must be after start_date"
-            )
+            raise ValueError("end_date must be after start_date")
 
         return v
 
-   
-from pydantic import ConfigDict
-model_config = ConfigDict(
-    use_enum_values=True
-)
+    model_config = ConfigDict(use_enum_values=True)

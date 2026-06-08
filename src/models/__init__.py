@@ -1,28 +1,24 @@
-from .travel_preferences import (
-    TravelPreferences,
-    TravelStyle,
-    ActivityType,
-)
-
-from .flight import (
-    FlightOption,
-    FlightSegment,
-)
-
-from .hotel import (
-    HotelOption,
-    GeoLocation,
-)
-
 from .attraction import (
     Attraction,
     AttractionCategory,
 )
-
+from .flight import (
+    FlightOption,
+    FlightSegment,
+)
+from .hotel import (
+    GeoLocation,
+    HotelOption,
+)
 from .itinerary import (
-    Itinerary,
     DayPlan,
+    Itinerary,
     ItineraryActivity,
+)
+from .travel_preferences import (
+    ActivityType,
+    TravelPreferences,
+    TravelStyle,
 )
 
 __all__ = [
