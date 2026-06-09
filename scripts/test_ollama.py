@@ -1,14 +1,15 @@
-import time
-
+from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
+import os
 
-print("Creating model...")
-llm = ChatOllama(model="qwen3:8b", temperature=0)
+load_dotenv()
 
-print("Sending request...")
-start = time.time()
+llm = ChatOllama(
+    model=os.getenv("OLLAMA_MODEL"),
+    base_url=os.getenv("OLLAMA_BASE_URL"),
+)
 
-response = llm.invoke("What is 2+2?")
+response = llm.invoke("Say hello in JSON format")
 
-print("Done in", time.time() - start, "seconds")
 print(response.content)
+print("✓ Ollama working")
