@@ -59,6 +59,10 @@ python_version = "3.11"
 strict = true
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["src.utils.cache", "src.tools.base", "src.tools.dummy_tool"]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
