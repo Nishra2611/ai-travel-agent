@@ -26,8 +26,8 @@ class CacheManager:
         if settings.use_fake_redis:
             return self._fake_client()
         try:
-            import redis  # type: ignore[import-untyped]
-            client: Any = redis.from_url(  # type: ignore[no-untyped-call]
+            import redis
+            client: Any = redis.from_url(
                 settings.redis_url,
                 decode_responses=True,
                 socket_connect_timeout=2,
@@ -42,8 +42,7 @@ class CacheManager:
 
     @staticmethod
     def _fake_client() -> Any:
-        import fakeredis  # type: ignore[import-untyped]
-        logger.info("Using fakeredis (in-memory, dev only)")
+        import fakeredis
         return fakeredis.FakeRedis(decode_responses=True)
 
     def _make_key(self, namespace: str, params: dict[str, Any]) -> str:

@@ -15,6 +15,6 @@ class DummyFlightTool(BaseTravelTool):
     def _mock_data(self, **kwargs: Any) -> list[dict[str, Any]]:
         return [{"airline": "Mock Airline", "price": 4500}]
 
-    def _run(self, origin: str, destination: str) -> list[dict[str, Any]]:  # type: ignore[override]
+    def _run(self, origin: str, destination: str) -> list[dict[str, Any]]:
         params = {"origin": origin, "destination": destination}
         return self._execute_with_cache(params)
