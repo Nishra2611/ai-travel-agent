@@ -23,12 +23,11 @@ class CacheManager:
         return self._client
 
     def _connect(self) -> Any:
-        # Try real Redis first; fall back to fakeredis automatically on Windows dev
         if settings.use_fake_redis:
             return self._fake_client()
         try:
-            import redis
-            client = redis.from_url(
+            import redis  # type: ignore[import-untyped]
+            client: Any = redis.from_url(  # type: ignore[no-untyped-call]
                 settings.redis_url,
                 decode_responses=True,
                 socket_connect_timeout=2,
@@ -38,21 +37,21 @@ class CacheManager:
             logger.info("Connected to Redis at %s", settings.redis_url)
             return client
         except Exception as exc:
-            logger.warning("Redis unavailable (%s) — switching to fakeredis", exc)
+            logger.warning("Redis unavailable (%s) - switching to fakeredis", exc)
             return self._fake_client()
 
     @staticmethod
     def _fake_client() -> Any:
-        import fakeredis
+        import fakeredis  # type: ignore[import-untyped]
         logger.info("Using fakeredis (in-memory, dev only)")
         return fakeredis.FakeRedis(decode_responses=True)
 
-    def _make_key(self, namespace: str, params: dict) -> str:
+    def _make_key(self, namespace: str, params: dict[str, Any]) -> str:
         param_str = json.dumps(params, sort_keys=True)
         hash_str = hashlib.md5(param_str.encode()).hexdigest()[:12]
         return f"travel:{namespace}:{hash_str}"
 
-    def get(self, namespace: str, params: dict) -> Any | None:
+    def get(self, namespace: str, params: dict[str, Any]) -> Any | None:
         key = self._make_key(namespace, params)
         try:
             raw = self.client.get(key)
@@ -65,7 +64,7 @@ class CacheManager:
             logger.warning("Cache GET failed: %s", exc)
             return None
 
-    def set(self, namespace: str, params: dict, value: Any, ttl: int = 3600) -> bool:
+    def set(self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600) -> bool:
         key = self._make_key(namespace, params)
         try:
             self.client.setex(key, ttl, json.dumps(value))
@@ -75,7 +74,7 @@ class CacheManager:
             logger.warning("Cache SET failed: %s", exc)
             return False
 
-    def invalidate(self, namespace: str, params: dict) -> bool:
+    def invalidate(self, namespace: str, params: dict[str, Any]) -> bool:
         key = self._make_key(namespace, params)
         try:
             self.client.delete(key)
