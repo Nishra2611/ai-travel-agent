@@ -1,8 +1,10 @@
 """Base class for all travel agent tools."""
 
 import time
-from typing import Any, Optional
+from typing import Any
+
 from langchain.tools import BaseTool
+
 from src.utils.cache import cache
 from src.utils.logger import get_logger
 
@@ -30,7 +32,7 @@ class BaseTravelTool(BaseTool):
     def model_post_init(self, __context: Any) -> None:
         self._logger = get_logger(self.__class__.__name__)
 
-    def _get_cached(self, params: dict) -> Optional[Any]:
+    def _get_cached(self, params: dict) -> Any | None:
         return cache.get(self.cache_namespace, params)
 
     def _set_cached(self, params: dict, value: Any) -> None:

@@ -1,9 +1,10 @@
 """Redis-backed cache for all travel agent API responses."""
 
-import json
 import hashlib
+import json
 import logging
-from typing import Optional, Any
+
+from typing import Any
 
 from src.utils.config import settings
 
@@ -52,7 +53,7 @@ class CacheManager:
         hash_str = hashlib.md5(param_str.encode()).hexdigest()[:12]
         return f"travel:{namespace}:{hash_str}"
 
-    def get(self, namespace: str, params: dict) -> Optional[Any]:
+    def get(self, namespace: str, params: dict) -> Any | None:
         key = self._make_key(namespace, params)
         try:
             raw = self.client.get(key)
