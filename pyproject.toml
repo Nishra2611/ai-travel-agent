@@ -21,7 +21,9 @@ dependencies = [
     "redis (>=5.0.0,<6.0.0)",
     "hiredis (>=2.3.0,<3.0.0)",
     "fakeredis (>=2.21.0,<3.0.0)",
-    "pydantic-settings (>=2.0.0,<3.0.0)"
+    "pydantic-settings (>=2.0.0,<3.0.0)",
+    "cachetools (>=7.1.4,<8.0.0)",
+    "google-search-results (>=2.4.2,<3.0.0)"
 ]
 
 
