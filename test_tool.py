@@ -1,4 +1,4 @@
-from src.tools.dummy_tool import DummyFlightTool
+from ai_travel_agent.tools.dummy_tool import DummyFlightTool
 
 tool = DummyFlightTool()
 

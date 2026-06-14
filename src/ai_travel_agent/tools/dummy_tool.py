@@ -1,6 +1,6 @@
 from typing import Any
 
-from src.tools.base import BaseTravelTool
+from ai_travel_agent.tools.base import BaseTravelTool
 
 
 class DummyFlightTool(BaseTravelTool):

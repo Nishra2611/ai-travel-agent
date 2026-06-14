@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from src.models.hotel import GeoLocation
+from ai_travel_agent.models.hotel import GeoLocation
 
 
 class AttractionCategory(StrEnum):

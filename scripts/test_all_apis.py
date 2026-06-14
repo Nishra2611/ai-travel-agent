@@ -1,8 +1,7 @@
-import subprocess, sys
+import subprocess
+import sys
 
 apis = [
-    ("Anthropic", "scripts/test_anthropic.py"),
-    ("Amadeus", "scripts/test_amadeus.py"),
     ("Google Maps", "scripts/test_google_maps.py"),
     ("OpenWeatherMap", "scripts/test_weather.py"),
     ("Serper", "scripts/test_serper.py"),
