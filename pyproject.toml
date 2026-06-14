@@ -56,6 +56,9 @@ line-length = 88
 select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["E501"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["ai_travel_agent"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

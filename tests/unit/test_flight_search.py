@@ -4,6 +4,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
+
 from ai_travel_agent.tools.flight_search import FlightSearchTool
 
 
