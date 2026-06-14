@@ -1,5 +1,10 @@
 """Unit tests for HotelSearchTool."""
 
+# from unittest.mock import patch
+
+# import pytest
+# from ai_travel_agent.tools.hotel_search import HotelSearchTool
+
 from unittest.mock import patch
 
 import pytest

@@ -11,6 +11,12 @@ Endpoints this week:
     GET  /api/cache/status
 """
 
+# from ai_travel_agent.tools.flight_search import FlightSearchTool
+# from ai_travel_agent.tools.hotel_search import HotelSearchTool
+# from ai_travel_agent.utils.cache import cache
+# from fastapi import FastAPI, HTTPException, Query
+# from fastapi.middleware.cors import CORSMiddleware
+
 from ai_travel_agent.tools.flight_search import FlightSearchTool
 from ai_travel_agent.tools.hotel_search import HotelSearchTool
 from ai_travel_agent.utils.cache import cache
