@@ -10,7 +10,7 @@ from ai_travel_agent.utils.exceptions import APIRateLimitError, APITimeoutError
 
 logger = logging.getLogger(__name__)
 
-DAILY_SERPAPI_LIMIT = 8
+DAILY_SERPAPI_LIMIT = 1000
 
 
 class BaseTravelTool(BaseTool):
