@@ -3,8 +3,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from src.models.flight import FlightOption
-from src.models.hotel import HotelOption
+from ai_travel_agent.models.flight import FlightOption
+from ai_travel_agent.models.hotel import HotelOption
 
 
 class TimeSlot(StrEnum):

@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.tools.hotel_search import HotelSearchTool  # noqa: E402
+from ai_travel_agent.tools.hotel_search import HotelSearchTool  # noqa: E402
 
 tool = HotelSearchTool(use_mock_on_failure=True)
 

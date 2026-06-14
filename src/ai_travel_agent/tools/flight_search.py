@@ -8,10 +8,10 @@ from typing import Any
 from pydantic import BaseModel, Field
 from serpapi import GoogleSearch
 
-from src.models import FlightOption, FlightSegment
-from src.tools.base import BaseTravelTool
-from src.utils.config import settings
-from src.utils.exceptions import (
+from ai_travel_agent.models import FlightOption, FlightSegment
+from ai_travel_agent.tools.base import BaseTravelTool
+from ai_travel_agent.utils.config import settings
+from ai_travel_agent.utils.exceptions import (
     APIAuthError,
     APIRateLimitError,
     NoResultsError,

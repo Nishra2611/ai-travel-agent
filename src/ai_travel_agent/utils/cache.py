@@ -6,7 +6,7 @@ import logging
 from datetime import date
 from typing import Any
 
-from src.utils.config import settings
+from ai_travel_agent.utils.config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -17,9 +17,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.tools.flight_search import FlightSearchTool  # noqa: E402
-from src.tools.hotel_search import HotelSearchTool  # noqa: E402
-from src.utils.cache import cache  # noqa: E402
+from ai_travel_agent.tools.flight_search import FlightSearchTool  # noqa: E402
+from ai_travel_agent.tools.hotel_search import HotelSearchTool  # noqa: E402
+from ai_travel_agent.utils.cache import cache  # noqa: E402
 
 print("=" * 60)
 print("Cache verification demo")

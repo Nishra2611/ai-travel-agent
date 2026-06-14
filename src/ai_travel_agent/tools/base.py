@@ -6,7 +6,7 @@ from typing import Any
 
 from langchain.tools import BaseTool
 
-from src.utils.exceptions import APIRateLimitError, APITimeoutError
+from ai_travel_agent.utils.exceptions import APIRateLimitError, APITimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -52,22 +52,22 @@ class BaseTravelTool(BaseTool):
     # ------------------------------------------------------------------
 
     def _get_cached(self, params: dict) -> list[dict] | None:
-        from src.utils.cache import cache
+        from ai_travel_agent.utils.cache import cache
 
         return cache.get(self.cache_namespace, params)
 
     def _set_cached(self, params: dict, value: list[dict]) -> None:
-        from src.utils.cache import cache
+        from ai_travel_agent.utils.cache import cache
 
         cache.set(self.cache_namespace, params, value, self.cache_ttl)
 
     def _budget_exceeded(self) -> bool:
-        from src.utils.cache import cache
+        from ai_travel_agent.utils.cache import cache
 
         return cache.get_api_calls_today("serpapi") >= DAILY_SERPAPI_LIMIT
 
     def _increment_budget(self) -> None:
-        from src.utils.cache import cache
+        from ai_travel_agent.utils.cache import cache
 
         cache.increment_api_calls("serpapi")
 

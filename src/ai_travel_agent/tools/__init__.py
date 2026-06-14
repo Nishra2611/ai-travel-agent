@@ -1,7 +1,7 @@
 """Travel agent tools package."""
 
-from src.tools.flight_search import FlightSearchTool
-from src.tools.hotel_search import HotelSearchTool
+from ai_travel_agent.tools.flight_search import FlightSearchTool
+from ai_travel_agent.tools.hotel_search import HotelSearchTool
 
 __all__ = [
     "FlightSearchTool",

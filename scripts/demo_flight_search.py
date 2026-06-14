@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.tools.flight_search import FlightSearchTool  # noqa: E402
+from ai_travel_agent.tools.flight_search import FlightSearchTool  # noqa: E402
 
 tool = FlightSearchTool(use_mock_on_failure=True)
 
