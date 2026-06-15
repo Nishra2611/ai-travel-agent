@@ -1,8 +1,9 @@
 """FastAPI application entry point."""
 
 from fastapi import FastAPI, HTTPException, Query
-from ai_travel_agent.utils.cache import cache
+
 from ai_travel_agent.tools.dummy_tool import DummyFlightTool
+from ai_travel_agent.utils.cache import cache
 
 app = FastAPI(
     title="AI Travel Agent",

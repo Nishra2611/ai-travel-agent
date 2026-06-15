@@ -1,7 +1,7 @@
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
 
-from src.models.travel_preferences import TravelPreferences
+from ai_travel_agent.models.travel_preferences import TravelPreferences
 
 
 class PreferenceParserInput(BaseModel):
