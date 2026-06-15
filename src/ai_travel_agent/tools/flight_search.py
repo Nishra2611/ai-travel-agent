@@ -58,7 +58,7 @@ class FlightSearchTool(BaseTravelTool):
         max_price: float | None = None,
         max_stops: int | None = None,
         travel_class: int = 1,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
             "origin": origin.upper(),
             "destination": destination.upper(),
@@ -82,16 +82,13 @@ class FlightSearchTool(BaseTravelTool):
     # Real API call
     # ------------------------------------------------------------------
 
-    def _fetch(
-        self,
-        origin: str,
-        destination: str,
-        departure_date: str,
-        return_date: str | None = None,
-        adults: int = 1,
-        travel_class: int = 1,
-        **_: Any,
-    ) -> list[dict]:
+    def _fetch(self, **kwargs: Any) -> list[dict[str, Any]]:
+        origin: str = kwargs["origin"]
+        destination: str = kwargs["destination"]
+        departure_date: str = kwargs["departure_date"]
+        return_date: str | None = kwargs.get("return_date")
+        adults: int = kwargs.get("adults", 1)
+        travel_class: int = kwargs.get("travel_class", 1)
         trip_type = 1 if return_date else 2
 
         serpapi_params: dict[str, Any] = {
@@ -120,7 +117,7 @@ class FlightSearchTool(BaseTravelTool):
                 raise APIAuthError(f"SerpApi key error: {err}")
             raise Exception(f"SerpApi Flights error: {err}")
 
-        all_flights: list[dict] = response.get("best_flights", []) + response.get(
+        all_flights: list[dict[str, Any]] = response.get("best_flights", []) + response.get(
             "other_flights", []
         )
 
@@ -133,7 +130,7 @@ class FlightSearchTool(BaseTravelTool):
     # Response mapping → your FlightOption / FlightSegment models
     # ------------------------------------------------------------------
 
-    def _map_flight(self, raw: dict) -> dict:
+    def _map_flight(self, raw: dict[str, Any]) -> dict[str, Any]:
         segments: list[FlightSegment] = []
         for seg in raw.get("flights", []):
             dep = seg["departure_airport"]
@@ -187,13 +184,10 @@ class FlightSearchTool(BaseTravelTool):
     # Mock data — realistic fallback, same schema as real response
     # ------------------------------------------------------------------
 
-    def _mock_data(
-        self,
-        origin: str,
-        destination: str,
-        departure_date: str,
-        **_: Any,
-    ) -> list[dict]:
+    def _mock_data(self, **kwargs: Any) -> list[dict[str, Any]]:
+        origin: str = kwargs["origin"]
+        destination: str = kwargs["destination"]
+        departure_date: str = kwargs["departure_date"]
         rows = [
             ("AI 131", "Air India", 742, 510, 0),
             ("EK 505", "Emirates", 820, 570, 1),
@@ -201,7 +195,7 @@ class FlightSearchTool(BaseTravelTool):
             ("BA 119", "British Airways", 960, 480, 0),
             ("LH 760", "Lufthansa", 1050, 600, 1),
         ]
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
         for flight_no, airline, price, dur, stops in rows:
             seg = FlightSegment(
                 departure_airport=origin,

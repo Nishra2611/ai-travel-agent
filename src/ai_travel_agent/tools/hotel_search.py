@@ -56,7 +56,7 @@ class HotelSearchTool(BaseTravelTool):
         max_price_per_night: float | None = None,
         min_rating: float | None = None,
         hotel_class: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
             "city": city.lower().strip(),
             "check_in": check_in,
@@ -88,15 +88,12 @@ class HotelSearchTool(BaseTravelTool):
     # Real API call
     # ------------------------------------------------------------------
 
-    def _fetch(
-        self,
-        city: str,
-        check_in: str,
-        check_out: str,
-        adults: int = 2,
-        hotel_class: str | None = None,
-        **_: Any,
-    ) -> list[dict]:
+    def _fetch(self, **kwargs: Any) -> list[dict[str, Any]]:
+        city: str = kwargs["city"]
+        check_in: str = kwargs["check_in"]
+        check_out: str = kwargs["check_out"]
+        adults: int = kwargs.get("adults", 2)
+        hotel_class: str | None = kwargs.get("hotel_class")
         serpapi_params: dict[str, Any] = {
             "engine": "google_hotels",
             "q": f"{city} hotels",
@@ -122,7 +119,7 @@ class HotelSearchTool(BaseTravelTool):
                 raise APIAuthError(f"SerpApi key error: {err}")
             raise Exception(f"SerpApi Hotels error: {err}")
 
-        properties: list[dict] = response.get("properties", [])
+        properties: list[dict[str, Any]] = response.get("properties", [])
         if not properties:
             raise NoResultsError(f"No hotels found in {city}")
 
@@ -137,8 +134,8 @@ class HotelSearchTool(BaseTravelTool):
     # ------------------------------------------------------------------
 
     def _map_hotel(
-        self, prop: dict, check_in: str, check_out: str, nights: int
-    ) -> dict:
+        self, prop: dict[str, Any], check_in: str, check_out: str, nights: int
+    ) -> dict[str, Any]:
         rate_info = prop.get("rate_per_night", {})
         # always use extracted_ (numeric) — "lowest" is a display string
         per_night = float(rate_info.get("extracted_lowest") or 0)
@@ -188,14 +185,10 @@ class HotelSearchTool(BaseTravelTool):
     # Mock data — realistic fallback, same schema as real response
     # ------------------------------------------------------------------
 
-    def _mock_data(
-        self,
-        city: str,
-        check_in: str,
-        check_out: str,
-        adults: int = 2,
-        **_: Any,
-    ) -> list[dict]:
+    def _mock_data(self, **kwargs: Any) -> list[dict[str, Any]]:
+        city: str = kwargs["city"]
+        check_in: str = kwargs["check_in"]
+        check_out: str = kwargs["check_out"]
         ci = date.fromisoformat(check_in)
         co = date.fromisoformat(check_out)
         nights = max((co - ci).days, 1)
@@ -236,7 +229,7 @@ class HotelSearchTool(BaseTravelTool):
             ("The Cloister Inn", 3, 4.0, 110, ["Free Wi-Fi", "Breakfast", "Garden"]),
             ("Nomad Capsule Hotel", 2, 3.7, 45, ["Free Wi-Fi", "Shared Kitchen"]),
         ]
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
         for i, (name, stars, rating, ppn, amenities) in enumerate(rows):
             option = HotelOption(
                 id=f"mock-{uuid.uuid4().hex[:8]}",
