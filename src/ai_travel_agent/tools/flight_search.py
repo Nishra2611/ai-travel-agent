@@ -184,10 +184,7 @@ class FlightSearchTool(BaseTravelTool):
     # Mock data — realistic fallback, same schema as real response
     # ------------------------------------------------------------------
 
-    def _mock_data(self, **kwargs: Any) -> list[dict[str, Any]]:
-        origin: str = kwargs["origin"]
-        destination: str = kwargs["destination"]
-        departure_date: str = kwargs["departure_date"]
+    def _mock_data(self, origin: str, destination: str, departure_date: str, **kwargs: Any) -> list[dict[str, Any]]:
         rows = [
             ("AI 131", "Air India", 742, 510, 0),
             ("EK 505", "Emirates", 820, 570, 1),
