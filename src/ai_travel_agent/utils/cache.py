@@ -82,6 +82,12 @@ class CacheManager:
             logger.warning("Cache DELETE failed: %s", exc)
             return False
 
+    def clear(self) -> None:
+        try:
+            self.client.flushall()
+        except Exception as exc:
+            logger.warning("Cache CLEAR failed: %s", exc)
+
     def is_healthy(self) -> bool:
         try:
             return bool(self.client.ping())

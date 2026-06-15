@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
-from serpapi import GoogleSearch
+from serpapi.google_search import GoogleSearch
 
 from ai_travel_agent.models import FlightOption, FlightSegment
 from ai_travel_agent.tools.base import BaseTravelTool
