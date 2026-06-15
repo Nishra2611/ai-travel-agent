@@ -508,18 +508,6 @@ webencodings = "*"
 css = ["tinycss2 (>=1.1.0,<1.5)"]
 
 [[package]]
-name = "cachetools"
-version = "7.1.4"
-description = "Extensible memoizing collections and decorators"
-optional = false
-python-versions = ">=3.10"
-groups = ["main"]
-files = [
-    {file = "cachetools-7.1.4-py3-none-any.whl", hash = "sha256:323dc4127934744db5b54eb4924482d7edafbf9554e820d1531c2e08c0e4ef54"},
-    {file = "cachetools-7.1.4.tar.gz", hash = "sha256:437f55a4e0c1b01a4f3077cc470e6991d47430970e36fbcb77e2be0df4fc1cd6"},
-]
-
-[[package]]
 name = "certifi"
 version = "2026.5.20"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -1259,20 +1247,6 @@ files = [
     {file = "frozenlist-1.8.0-py3-none-any.whl", hash = "sha256:0c18a16eab41e82c295618a77502e17b195883241c563b00f0aa5106fc4eaa0d"},
     {file = "frozenlist-1.8.0.tar.gz", hash = "sha256:3ede829ed8d842f6cd48fc7081d7a41001a56f1f38603f9d49bf3020d59a31ad"},
 ]
-
-[[package]]
-name = "google-search-results"
-version = "2.4.2"
-description = "Scrape and search localized results from Google, Bing, Baidu, Yahoo, Yandex, Ebay, Homedepot, youtube at scale using SerpApi.com"
-optional = false
-python-versions = ">=3.5"
-groups = ["main"]
-files = [
-    {file = "google_search_results-2.4.2.tar.gz", hash = "sha256:603a30ecae2af8e600b22635757a6df275dad4b934f975e67878ccd640b78245"},
-]
-
-[package.dependencies]
-requests = "*"
 
 [[package]]
 name = "h11"
@@ -5252,4 +5226,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "665bfd9f56ef30622710065a190bc6fab9e429defcfe5bf79cc2015f89a62717"
+content-hash = "7e642aa97a46507c77cd63332bb8d36c9093adc644d96e2a51879467078e0975"
