@@ -47,7 +47,7 @@ class HotelSearchTool(BaseTravelTool):
     # BaseTool required entry point
     # ------------------------------------------------------------------
 
-    def _run(  # type: ignore[override]
+    def _run(
         self,
         city: str,
         check_in: str,
@@ -88,7 +88,7 @@ class HotelSearchTool(BaseTravelTool):
     # Real API call
     # ------------------------------------------------------------------
 
-    def _fetch(  # type: ignore[override]
+    def _fetch(
         self,
         city: str,
         check_in: str,
@@ -112,7 +112,7 @@ class HotelSearchTool(BaseTravelTool):
             serpapi_params["hotel_class"] = hotel_class
 
         search = GoogleSearch(serpapi_params)
-        response: dict = search.get_dict()
+        response: dict[str, Any] = search.get_dict()
 
         if "error" in response:
             err = str(response["error"])
@@ -188,7 +188,7 @@ class HotelSearchTool(BaseTravelTool):
     # Mock data — realistic fallback, same schema as real response
     # ------------------------------------------------------------------
 
-    def _mock_data(  # type: ignore[override]
+    def _mock_data(
         self,
         city: str,
         check_in: str,

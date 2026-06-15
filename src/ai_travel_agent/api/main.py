@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+from typing import Any
+
 from fastapi import FastAPI, HTTPException, Query
 
 from ai_travel_agent.tools.dummy_tool import DummyFlightTool
@@ -15,7 +17,7 @@ flight_tool = DummyFlightTool()
 
 
 @app.get("/")
-def root():
+def root() -> dict[str, Any]:
     return {
         "message": "AI Travel Agent is running",
         "version": app.version,
@@ -24,7 +26,7 @@ def root():
 
 
 @app.get("/health")
-def health():
+def health() -> dict[str, Any]:
     healthy = cache.is_healthy()
     return {
         "status": "ok" if healthy else "degraded",
@@ -33,7 +35,7 @@ def health():
 
 
 @app.get("/cache/health")
-def cache_health():
+def cache_health() -> dict[str, Any]:
     healthy = cache.is_healthy()
     return {
         "redis": "connected" if healthy else "using fakeredis (dev mode)",
@@ -45,7 +47,7 @@ def cache_health():
 def search_flights(
     origin: str = Query(default="AMD", min_length=3, max_length=3),
     destination: str = Query(default="DEL", min_length=3, max_length=3),
-):
+) -> dict[str, Any]:
     try:
         result = flight_tool._run(origin=origin, destination=destination)
     except Exception as e:

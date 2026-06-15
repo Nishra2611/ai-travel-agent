@@ -48,7 +48,7 @@ class FlightSearchTool(BaseTravelTool):
     # BaseTool required entry point
     # ------------------------------------------------------------------
 
-    def _run(  # type: ignore[override]
+    def _run(
         self,
         origin: str,
         destination: str,
@@ -82,7 +82,7 @@ class FlightSearchTool(BaseTravelTool):
     # Real API call
     # ------------------------------------------------------------------
 
-    def _fetch(  # type: ignore[override]
+    def _fetch(
         self,
         origin: str,
         destination: str,
@@ -110,7 +110,7 @@ class FlightSearchTool(BaseTravelTool):
             serpapi_params["return_date"] = return_date
 
         search = GoogleSearch(serpapi_params)
-        response: dict = search.get_dict()
+        response: dict[str, Any] = search.get_dict()
 
         if "error" in response:
             err = str(response["error"])
@@ -187,7 +187,7 @@ class FlightSearchTool(BaseTravelTool):
     # Mock data — realistic fallback, same schema as real response
     # ------------------------------------------------------------------
 
-    def _mock_data(  # type: ignore[override]
+    def _mock_data(
         self,
         origin: str,
         destination: str,
