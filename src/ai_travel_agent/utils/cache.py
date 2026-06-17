@@ -46,7 +46,7 @@ class CacheManager:
         return fakeredis.FakeRedis(decode_responses=True)
 
     def _make_key(self, namespace: str, params: dict[str, Any]) -> str:
-        param_str = json.dumps(params, sort_keys=True)
+        param_str = json.dumps(params, sort_keys=True, default=str)
         hash_str = hashlib.md5(param_str.encode()).hexdigest()[:12]
         return f"travel:{namespace}:{hash_str}"
 
@@ -66,7 +66,7 @@ class CacheManager:
     def set(self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600) -> bool:
         key = self._make_key(namespace, params)
         try:
-            self.client.setex(key, ttl, json.dumps(value))
+            self.client.setex(key, ttl, json.dumps(value, default=str))
             logger.debug("Cache SET: %s (TTL=%ds)", key, ttl)
             return True
         except Exception as exc:
@@ -81,6 +81,12 @@ class CacheManager:
         except Exception as exc:
             logger.warning("Cache DELETE failed: %s", exc)
             return False
+
+    def clear(self) -> None:
+        try:
+            self.client.flushall()
+        except Exception as exc:
+            logger.warning("Cache CLEAR failed: %s", exc)
 
     def is_healthy(self) -> bool:
         try:

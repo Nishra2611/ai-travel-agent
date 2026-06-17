@@ -28,7 +28,7 @@ class BaseTravelTool(BaseTool):
     def _fetch(self, **kwargs: Any) -> list[dict[str, Any]]:
         raise NotImplementedError
 
-    def _mock_data(self, **kwargs: Any) -> list[dict[str, Any]]:
+    def _mock_data(self, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         raise NotImplementedError
 
     def _execute_with_cache(self, params: dict[str, Any]) -> list[dict[str, Any]]:

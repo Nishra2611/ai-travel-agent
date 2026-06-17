@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
-from serpapi import GoogleSearch
+from serpapi.google_search import GoogleSearch
 
 from ai_travel_agent.models import FlightOption, FlightSegment
 from ai_travel_agent.tools.base import BaseTravelTool
@@ -184,10 +184,14 @@ class FlightSearchTool(BaseTravelTool):
     # Mock data — realistic fallback, same schema as real response
     # ------------------------------------------------------------------
 
-    def _mock_data(self, **kwargs: Any) -> list[dict[str, Any]]:
-        origin: str = kwargs["origin"]
-        destination: str = kwargs["destination"]
-        departure_date: str = kwargs["departure_date"]
+    def _mock_data(self, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        if len(args) >= 3:
+            origin, destination, departure_date = args[:3]
+        else:
+            origin = kwargs["origin"]
+            destination = kwargs["destination"]
+            departure_date = kwargs["departure_date"]
+
         rows = [
             ("AI 131", "Air India", 742, 510, 0),
             ("EK 505", "Emirates", 820, 570, 1),
