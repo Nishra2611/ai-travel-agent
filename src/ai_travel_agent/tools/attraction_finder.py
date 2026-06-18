@@ -1,3 +1,5 @@
+from typing import Any
+
 import httpx
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -13,7 +15,7 @@ def overpass_attractions_near(
     lng: float,
     radius_m: int = 8000,
     limit: int = 25,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     query = f"""
     [out:json][timeout:25];
     (
@@ -30,7 +32,7 @@ def overpass_attractions_near(
     )
     resp.raise_for_status()
 
-    results = []
+    results: list[dict[str, Any]] = []
 
     for el in resp.json().get("elements", []):
         tags = el.get("tags", {})
@@ -80,7 +82,7 @@ class AttractionFinderTool(BaseTool):
         city: str,
         country: str | None = None,
         limit: int = 10,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         return self._find(city, country, limit)
 
     async def _arun(
@@ -88,7 +90,7 @@ class AttractionFinderTool(BaseTool):
         city: str,
         country: str | None = None,
         limit: int = 10,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         return self._find(city, country, limit)
 
     def _find(
@@ -96,17 +98,17 @@ class AttractionFinderTool(BaseTool):
         city: str,
         country: str | None,
         limit: int,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         query = f"{city}, {country}" if country else city
 
         center = geocode(query)
 
-        if not center:
+        if center is None:
             return []
 
         candidates = overpass_attractions_near(
-            center["lat"],
-            center["lng"],
+            float(center["lat"]),
+            float(center["lng"]),
         )
 
         web_hits = web_search(
@@ -115,17 +117,19 @@ class AttractionFinderTool(BaseTool):
         )
 
         web_titles = " ".join(
-            hit["title"].lower() for hit in web_hits if hit.get("title")
+            str(hit["title"]).lower() for hit in web_hits if hit.get("title")
         )
 
         for attraction in candidates:
-            attraction["popularity_hint"] = attraction["name"].lower() in web_titles
+            attraction["popularity_hint"] = (
+                str(attraction["name"]).lower() in web_titles
+            )
 
             # Day 2 will replace this with Google Places ratings
             attraction["rating"] = None
 
         candidates.sort(
-            key=lambda item: item["popularity_hint"],
+            key=lambda item: bool(item.get("popularity_hint")),
             reverse=True,
         )
 

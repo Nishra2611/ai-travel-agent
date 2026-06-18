@@ -3,7 +3,10 @@ import os
 import httpx
 
 
-def web_search(query: str, num_results: int = 10) -> list[dict]:
+def web_search(
+    query: str,
+    num_results: int = 10,
+) -> list[dict[str, str | None]]:
     serper_key = os.getenv("SERPER_API_KEY")
     if serper_key:
         resp = httpx.post(
