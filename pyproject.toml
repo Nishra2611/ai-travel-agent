@@ -52,13 +52,11 @@ target-version = ["py311"]
 
 [tool.ruff]
 line-length = 88
+src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["E501"]
-
-[tool.ruff.lint.isort]
-known-first-party = ["ai_travel_agent"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -66,17 +64,9 @@ strict = true
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = [
-    "ai_travel_agent.utils.cache",
-    "ai_travel_agent.tools.base",
-    "ai_travel_agent.tools.dummy_tool",
-    "ai_travel_agent.tools.flight_search",
-    "ai_travel_agent.tools.hotel_search",
-    "ai_travel_agent.api.main",
-]
+module = ["ai_travel_agent.utils.cache", "ai_travel_agent.tools.base", "ai_travel_agent.tools.dummy_tool"]
 ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-pythonpath = ["src"]
