@@ -2,14 +2,9 @@ from src.utils.cache import cache
 
 
 def test_cache():
-    params = {
-        "origin": "AMD",
-        "destination": "DEL"
-    }
+    params = {"origin": "AMD", "destination": "DEL"}
 
-    data = {
-        "price": 5000
-    }
+    data = {"price": 5000}
 
     cache.set("flight", params, data, ttl=60)
 

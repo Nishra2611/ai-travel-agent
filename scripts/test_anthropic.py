@@ -1,5 +1,6 @@
-from anthropic import Anthropic
 import os
+
+from anthropic import Anthropic
 from dotenv import load_dotenv
 
 load_dotenv()
