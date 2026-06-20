@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 from collections import defaultdict
 from datetime import datetime
 from typing import Any
@@ -129,4 +129,4 @@ class WeatherCheckerTool(BaseTool):
                 "temp_max": max(temps),
             })
 
-        return result
+        return result
