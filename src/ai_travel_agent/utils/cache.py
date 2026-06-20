@@ -1,9 +1,12 @@
 """Redis-backed cache for all travel agent API responses."""
 
+import functools
 import hashlib
 import json
 import logging
 from typing import Any
+
+from cachetools import TTLCache
 
 from ai_travel_agent.utils.config import settings
 
@@ -106,10 +109,7 @@ cache = CacheManager()
 def get_redis_client():
     return cache.client
 
-import functools
-import hashlib
-import json
-from cachetools import TTLCache
+
 
 _local_cache: TTLCache = TTLCache(maxsize=512, ttl=300)
 

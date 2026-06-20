@@ -1,6 +1,7 @@
 # Target: tests/tools/test_weather_checker.py
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from ai_travel_agent.tools.weather_checker import WeatherCheckerTool

@@ -2,10 +2,10 @@
 
 import json
 import logging
-from typing import Literal, Optional
+from typing import Literal
 
-from pydantic import BaseModel, Field
 from langchain_core.tools import BaseTool
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 class BudgetTrackerInput(BaseModel):
     trip_id: str = Field(..., description="Unique ID for this trip's ledger, e.g. 'paris-dec-2025'")
     action: Literal["set_budget", "add_expense", "get_summary", "reset"]
-    total_budget: Optional[float] = Field(None, description="Required for set_budget")
-    category: Optional[str] = Field(
+    total_budget: float | None = Field(None, description="Required for set_budget")
+    category: str | None = Field(
         None,
         description="Expense category: accommodation, food, attractions, transport, shopping, misc"
     )
-    amount: Optional[float] = Field(None, description="Expense amount in the trip's currency")
-    description: Optional[str] = Field(None, description="Short label for the expense")
+    amount: float | None = Field(None, description="Expense amount in the trip's currency")
+    description: str | None = Field(None, description="Short label for the expense")
 
 
 class BudgetTrackerTool(BaseTool):
@@ -39,10 +39,10 @@ class BudgetTrackerTool(BaseTool):
         self,
         trip_id: str,
         action: str,
-        total_budget: Optional[float] = None,
-        category: Optional[str] = None,
-        amount: Optional[float] = None,
-        description: Optional[str] = None,
+        total_budget: float | None = None,
+        category: str | None = None,
+        amount: float | None = None,
+        description: str | None = None,
     ) -> dict:
         # Late import keeps the module importable even when Redis is not yet
         # configured — the tool only connects at call time.
@@ -110,10 +110,10 @@ class BudgetTrackerTool(BaseTool):
         self,
         trip_id: str,
         action: str,
-        total_budget: Optional[float] = None,
-        category: Optional[str] = None,
-        amount: Optional[float] = None,
-        description: Optional[str] = None,
+        total_budget: float | None = None,
+        category: str | None = None,
+        amount: float | None = None,
+        description: str | None = None,
     ) -> dict:
         return self._run(
             trip_id=trip_id,

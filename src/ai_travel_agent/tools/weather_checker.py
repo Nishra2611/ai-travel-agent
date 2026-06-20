@@ -1,22 +1,21 @@
-print("WEATHER_CHECKER FILE LOADED")
 
-import os
 import logging
-from datetime import datetime
+import os
 from collections import defaultdict
+from datetime import datetime
 
 import httpx
-from pydantic import BaseModel, Field
 from langchain_core.tools import BaseTool
+from pydantic import BaseModel, Field
 from tenacity import (
     retry,
-    wait_exponential,
-    stop_after_attempt,
     retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
 )
 
-from ai_travel_agent.utils.config import settings
 from ai_travel_agent.services.geocode_client import geocode
+from ai_travel_agent.utils.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +116,7 @@ class WeatherCheckerTool(BaseTool):
         reraise=True,
     )
     def _forecast5(self, loc: dict, key: str, days: int) -> list[dict]:
-        
+
         resp = httpx.get(
             "https://api.openweathermap.org/data/2.5/forecast",
              params={

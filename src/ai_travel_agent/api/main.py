@@ -4,14 +4,13 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
+from ai_travel_agent.tools.budget_tracker import BudgetTrackerTool
 from ai_travel_agent.tools.dummy_tool import DummyFlightTool
 from ai_travel_agent.tools.hotel_search import HotelSearchTool
-from ai_travel_agent.utils.cache import cache
 from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
-from ai_travel_agent.tools.budget_tracker import BudgetTrackerTool
-from pydantic import BaseModel
-from typing import Optional
+from ai_travel_agent.utils.cache import cache
 
 app = FastAPI(
     title="AI Travel Agent",
@@ -45,10 +44,10 @@ _budget_tool = BudgetTrackerTool()
 class BudgetPayload(BaseModel):
     trip_id: str
     action: str
-    total_budget: Optional[float] = None
-    category: Optional[str] = None
-    amount: Optional[float] = None
-    description: Optional[str] = None
+    total_budget: float | None = None
+    category: str | None = None
+    amount: float | None = None
+    description: str | None = None
 # --------------------------------------------------
 # Root
 # --------------------------------------------------
@@ -184,7 +183,7 @@ def search_hotels(
             "count": len(result),
             "results": result,
         }
-    
+
 
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
