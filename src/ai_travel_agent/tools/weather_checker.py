@@ -1,8 +1,8 @@
-
-import logging
 import os
+import logging
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
 import httpx
 from langchain_core.tools import BaseTool
@@ -21,37 +21,31 @@ logger = logging.getLogger(__name__)
 
 
 class WeatherCheckerInput(BaseModel):
-    city: str = Field(..., description="City name, e.g. 'London' or 'Tokyo'")
-    days: int = Field(7, ge=1, le=8, description="Days to forecast (1–8)")
+    city: str = Field(..., description="City name")
+    days: int = Field(7, ge=1, le=8)
 
 
 class WeatherCheckerTool(BaseTool):
     name: str = "weather_checker"
-
-    description: str = (
-        "Returns a per-day weather forecast for a city."
-    )
-
+    description: str = "Returns weather forecast"
     args_schema: type[BaseModel] = WeatherCheckerInput
 
-    def _run(self, city: str, days: int = 7) -> list[dict]:
+    def _run(self, city: str, days: int = 7) -> list[dict[str, Any]]:
         return self._get_forecast(city, days)
 
-    async def _arun(self, city: str, days: int = 7) -> list[dict]:
+    async def _arun(self, city: str, days: int = 7) -> list[dict[str, Any]]:
         return self._get_forecast(city, days)
 
-    def _get_forecast(self, city: str, days: int) -> list[dict]:
+    def _get_forecast(self, city: str, days: int) -> list[dict[str, Any]]:
 
         key = settings.openweathermap_api_key
 
         if not key:
-            logger.warning("OPENWEATHERMAP_API_KEY not set")
+            logger.warning("Missing API key")
             return []
 
         loc = geocode(city)
-
         if not loc:
-            logger.warning("Could not geocode city '%s'", city)
             return []
 
         mode = os.getenv("WEATHER_API_MODE", "forecast5")
@@ -59,21 +53,17 @@ class WeatherCheckerTool(BaseTool):
         try:
             if mode == "onecall":
                 return self._onecall(loc, key, days)
-
             return self._forecast5(loc, key, days)
-
         except Exception as exc:
-            logger.exception("Weather API failed")
-            print("WEATHER ERROR:", exc)
+            logger.exception(exc)
             return []
 
     @retry(
         retry=retry_if_exception_type(httpx.HTTPStatusError),
         wait=wait_exponential(min=1, max=4),
         stop=stop_after_attempt(3),
-        reraise=True,
     )
-    def _onecall(self, loc: dict, key: str, days: int) -> list[dict]:
+    def _onecall(self, loc: dict[str, Any], key: str, days: int) -> list[dict[str, Any]]:
 
         resp = httpx.get(
             "https://api.openweathermap.org/data/3.0/onecall",
@@ -87,25 +77,18 @@ class WeatherCheckerTool(BaseTool):
             timeout=10,
         )
 
-        if resp.status_code != 200:
-            print("STATUS:", resp.status_code)
-            print("BODY:", resp.text)
-
         resp.raise_for_status()
 
-        result = []
+        result: list[dict[str, Any]] = []
 
         for day in resp.json().get("daily", [])[:days]:
-            result.append(
-                {
-                    "date": datetime.fromtimestamp(day["dt"]).strftime("%Y-%m-%d"),
-                    "condition": day["weather"][0]["description"].capitalize(),
-                    "temp_min": round(day["temp"]["min"], 1),
-                    "temp_max": round(day["temp"]["max"], 1),
-                    "rain_chance_pct": round(day.get("pop", 0) * 100),
-                    "humidity_pct": day.get("humidity"),
-                }
-            )
+            result.append({
+                "date": datetime.fromtimestamp(day["dt"]).strftime("%Y-%m-%d"),
+                "condition": day["weather"][0]["description"],
+                "temp_min": day["temp"]["min"],
+                "temp_max": day["temp"]["max"],
+                "rain_chance": day.get("pop", 0),
+            })
 
         return result
 
@@ -113,13 +96,12 @@ class WeatherCheckerTool(BaseTool):
         retry=retry_if_exception_type(httpx.HTTPStatusError),
         wait=wait_exponential(min=1, max=4),
         stop=stop_after_attempt(3),
-        reraise=True,
     )
-    def _forecast5(self, loc: dict, key: str, days: int) -> list[dict]:
+    def _forecast5(self, loc: dict[str, Any], key: str, days: int) -> list[dict[str, Any]]:
 
         resp = httpx.get(
             "https://api.openweathermap.org/data/2.5/forecast",
-             params={
+            params={
                 "lat": loc["lat"],
                 "lon": loc["lng"],
                 "appid": key,
@@ -128,51 +110,23 @@ class WeatherCheckerTool(BaseTool):
             timeout=10,
         )
 
-        print("STATUS:", resp.status_code)
-        print("BODY:", resp.text[:1000])
-
         resp.raise_for_status()
 
-        if resp.status_code != 200:
-                    print("STATUS:", resp.status_code)
-                    print("BODY:", resp.text)
-
-        resp.raise_for_status()
-
-        by_day = defaultdict(list)
+        by_day: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
 
         for slot in resp.json().get("list", []):
             date = slot["dt_txt"].split(" ")[0]
             by_day[date].append(slot)
 
-        result = []
+        result: list[dict[str, Any]] = []
 
         for date, slots in list(by_day.items())[:days]:
-
             temps = [s["main"]["temp"] for s in slots]
-            pops = [s.get("pop", 0) for s in slots]
 
-            conditions = [
-                s["weather"][0]["description"]
-                for s in slots
-            ]
-
-            modal_cond = max(
-                set(conditions),
-                key=conditions.count
-            )
-
-            mid = slots[len(slots) // 2]
-
-            result.append(
-                {
-                    "date": date,
-                    "condition": modal_cond.capitalize(),
-                    "temp_min": round(min(temps), 1),
-                    "temp_max": round(max(temps), 1),
-                    "rain_chance_pct": round(max(pops) * 100),
-                    "humidity_pct": mid["main"]["humidity"],
-                }
-            )
+            result.append({
+                "date": date,
+                "temp_min": min(temps),
+                "temp_max": max(temps),
+            })
 
         return result

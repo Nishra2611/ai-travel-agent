@@ -18,28 +18,19 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# --------------------------------------------------
-# CORS
-# --------------------------------------------------
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --------------------------------------------------
-# Tool instances
-# --------------------------------------------------
-
 flight_tool = DummyFlightTool()
 hotel_tool = HotelSearchTool()
 _weather_tool = WeatherCheckerTool()
 _budget_tool = BudgetTrackerTool()
+
 
 class BudgetPayload(BaseModel):
     trip_id: str
@@ -48,9 +39,6 @@ class BudgetPayload(BaseModel):
     category: str | None = None
     amount: float | None = None
     description: str | None = None
-# --------------------------------------------------
-# Root
-# --------------------------------------------------
 
 
 @app.get("/")
@@ -66,11 +54,6 @@ def root() -> dict[str, Any]:
             "/docs",
         ],
     }
-
-
-# --------------------------------------------------
-# Health
-# --------------------------------------------------
 
 
 @app.get("/health")
@@ -91,11 +74,6 @@ def cache_health() -> dict[str, Any]:
         "redis": "connected" if healthy else "using fakeredis (dev mode)",
         "healthy": healthy,
     }
-
-
-# --------------------------------------------------
-# Flights
-# --------------------------------------------------
 
 
 @app.get("/flights")
@@ -119,25 +97,20 @@ def search_flights(
         raise HTTPException(status_code=502, detail=str(e))
 
 
-# --------------------------------------------------
-# Hotels
-# --------------------------------------------------
-
 @app.post("/api/trip/budget")
-def update_budget(payload: BudgetPayload):
+def update_budget(payload: BudgetPayload) -> dict[str, Any]:
     try:
         return _budget_tool._run(**payload.model_dump())
+
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"budget error: {exc}",
-        ) from exc
+        raise HTTPException(status_code=502, detail=f"budget error: {exc}") from exc
 
 
 @app.get("/api/trip/budget/{trip_id}")
-def get_budget_summary(trip_id: str):
+def get_budget_summary(trip_id: str) -> dict[str, Any]:
     return _budget_tool._run(
         trip_id=trip_id,
         action="get_summary",
@@ -145,14 +118,20 @@ def get_budget_summary(trip_id: str):
 
 
 @app.get("/api/trip/weather")
-def get_weather(city: str, days: int = 7):
+def get_weather(city: str, days: int = 7) -> dict[str, Any]:
     try:
-        return _weather_tool._run(city=city, days=days)
+        result = _weather_tool._run(city=city, days=days)
+
+        return {
+            "city": city,
+            "forecast": result,
+        }
+
     except Exception as exc:
         raise HTTPException(
-            status_code=502, detail=f"weather lookup failed: {exc}"
+            status_code=502,
+            detail=f"weather lookup failed: {exc}",
         ) from exc
-
 
 @app.get("/api/hotels")
 def search_hotels(
@@ -183,7 +162,6 @@ def search_hotels(
             "count": len(result),
             "results": result,
         }
-
 
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))

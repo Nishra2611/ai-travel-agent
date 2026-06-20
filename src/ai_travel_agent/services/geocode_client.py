@@ -1,12 +1,13 @@
 import httpx
+from typing import Any
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "ai-travel-agent/1.0"
 
-@retry(wait=wait_fixed(1.1), stop=stop_after_attempt(3))
-def geocode(query: str):
 
+@retry(wait=wait_fixed(1.1), stop=stop_after_attempt(3))
+def geocode(query: str) -> dict[str, Any] | None:
     resp = httpx.get(
         NOMINATIM_URL,
         params={
@@ -24,7 +25,6 @@ def geocode(query: str):
     print("GEOCODE BODY =", resp.text[:500])
 
     resp.raise_for_status()
-
     data = resp.json()
 
     if not data:

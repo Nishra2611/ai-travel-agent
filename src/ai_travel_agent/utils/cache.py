@@ -7,11 +7,16 @@ import logging
 from typing import Any
 
 from cachetools import TTLCache
+from redis import Redis
 
 from ai_travel_agent.utils.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+# =========================================================
+# Cache Manager
+# =========================================================
 
 class CacheManager:
     """Redis-backed cache. Falls back to fakeredis when no Redis server is available."""
@@ -28,6 +33,7 @@ class CacheManager:
     def _connect(self) -> Any:
         if settings.use_fake_redis:
             return self._fake_client()
+
         try:
             import redis
 
@@ -40,6 +46,7 @@ class CacheManager:
             client.ping()
             logger.info("Connected to Redis at %s", settings.redis_url)
             return client
+
         except Exception as exc:
             logger.warning("Redis unavailable (%s) - switching to fakeredis", exc)
             return self._fake_client()
@@ -47,7 +54,6 @@ class CacheManager:
     @staticmethod
     def _fake_client() -> Any:
         import fakeredis
-
         return fakeredis.FakeRedis(decode_responses=True)
 
     def _make_key(self, namespace: str, params: dict[str, Any]) -> str:
@@ -57,34 +63,45 @@ class CacheManager:
 
     def get(self, namespace: str, params: dict[str, Any]) -> Any | None:
         key = self._make_key(namespace, params)
+
         try:
             raw = self.client.get(key)
             if raw:
                 logger.debug("Cache HIT: %s", key)
                 return json.loads(raw)
+
             logger.debug("Cache MISS: %s", key)
             return None
+
         except Exception as exc:
             logger.warning("Cache GET failed: %s", exc)
             return None
 
     def set(
-        self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600
+        self,
+        namespace: str,
+        params: dict[str, Any],
+        value: Any,
+        ttl: int = 3600,
     ) -> bool:
         key = self._make_key(namespace, params)
+
         try:
             self.client.setex(key, ttl, json.dumps(value, default=str))
             logger.debug("Cache SET: %s (TTL=%ds)", key, ttl)
             return True
+
         except Exception as exc:
             logger.warning("Cache SET failed: %s", exc)
             return False
 
     def invalidate(self, namespace: str, params: dict[str, Any]) -> bool:
         key = self._make_key(namespace, params)
+
         try:
             self.client.delete(key)
             return True
+
         except Exception as exc:
             logger.warning("Cache DELETE failed: %s", exc)
             return False
@@ -102,14 +119,20 @@ class CacheManager:
             return False
 
 
+# =========================================================
 # Singleton
+# =========================================================
 
 cache = CacheManager()
 
-def get_redis_client():
+
+def get_redis_client() -> Any:
     return cache.client
 
 
+# =========================================================
+# Local cache layer
+# =========================================================
 
 _local_cache: TTLCache = TTLCache(maxsize=512, ttl=300)
 
@@ -131,11 +154,11 @@ def tiered_cache(ttl: int, key_prefix: str):
         def wrapper(self, *args, **kwargs):
             key = _make_cache_key(key_prefix, args, kwargs)
 
-            # ---------- L1 ----------
+            # L1
             if key in _local_cache:
                 return _local_cache[key]
 
-            # ---------- L2 ----------
+            # L2
             try:
                 redis = get_redis_client()
                 raw = redis.get(key)
@@ -146,13 +169,13 @@ def tiered_cache(ttl: int, key_prefix: str):
             except Exception:
                 pass
 
-            # ---------- compute ----------
+            # compute
             result = func(self, *args, **kwargs)
 
-            # ---------- write L1 ----------
+            # write L1
             _local_cache[key] = result
 
-            # ---------- write L2 ----------
+            # write L2
             try:
                 redis = get_redis_client()
                 redis.set(key, json.dumps(result, default=str), ex=ttl)
