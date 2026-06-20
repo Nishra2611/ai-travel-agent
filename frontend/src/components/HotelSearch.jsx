@@ -396,7 +396,7 @@ export default function HotelSearch() {
       const res = await fetch(`${API_BASE}/api/hotels?${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setHotels(data.hotels ?? []);
+      setHotels(data.results ?? []);
     } catch (e) {
       setError("Could not reach the server — showing sample results.");
       setHotels(buildMockHotels(city, nights));
