@@ -64,6 +64,13 @@ class CacheManager:
         except Exception:
             return False
 
+    def clear(self) -> None:
+        try:
+            self.client.flushall()
+        except Exception:
+            pass
+
+
 
 cache = CacheManager()
 
