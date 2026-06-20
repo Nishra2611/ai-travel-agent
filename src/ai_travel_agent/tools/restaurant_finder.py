@@ -40,8 +40,7 @@ class RestaurantFinderTool(BaseTool):
     name: str = "restaurant_finder"
 
     description: str = (
-        "Find restaurants in a city filtered by "
-        "cuisine, budget and minimum rating."
+        "Find restaurants in a city filtered by " "cuisine, budget and minimum rating."
     )
 
     args_schema: type[BaseModel] = RestaurantFinderInput
@@ -87,9 +86,7 @@ class RestaurantFinderTool(BaseTool):
         limit: int,
     ) -> list[dict[str, Any]]:
         query = (
-            f"{cuisine} restaurants in {city}"
-            if cuisine
-            else f"restaurants in {city}"
+            f"{cuisine} restaurants in {city}" if cuisine else f"restaurants in {city}"
         )
 
         results = places_text_search(
@@ -97,11 +94,7 @@ class RestaurantFinderTool(BaseTool):
             max_results=30,
         )
 
-        target_price = (
-            BUDGET_TO_PRICE_LEVEL.get(budget)
-            if budget
-            else None
-        )
+        target_price = BUDGET_TO_PRICE_LEVEL.get(budget) if budget else None
 
         filtered: list[dict[str, Any]] = []
 
@@ -114,10 +107,9 @@ class RestaurantFinderTool(BaseTool):
             if float(rating) < min_rating:
                 continue
 
-            if (
-                target_price is not None
-                and restaurant.get("price_level")
-                not in (target_price, None)
+            if target_price is not None and restaurant.get("price_level") not in (
+                target_price,
+                None,
             ):
                 continue
 

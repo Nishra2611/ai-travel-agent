@@ -32,12 +32,8 @@ def places_text_search(
         results.append(
             {
                 "name": place.get("name"),
-                "lat": place.get("geometry", {})
-                .get("location", {})
-                .get("lat"),
-                "lng": place.get("geometry", {})
-                .get("location", {})
-                .get("lng"),
+                "lat": place.get("geometry", {}).get("location", {}).get("lat"),
+                "lng": place.get("geometry", {}).get("location", {}).get("lng"),
                 "rating": place.get("rating"),
                 "price_level": place.get("price_level"),
                 "address": place.get("formatted_address"),
@@ -62,7 +58,7 @@ def find_place_rating(
 
     rating = results[0].get("rating")
 
-    if isinstance(rating, (int, float)):
+    if isinstance(rating, int | float):
         return float(rating)
 
     return None

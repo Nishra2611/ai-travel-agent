@@ -117,9 +117,9 @@ class FlightSearchTool(BaseTravelTool):
                 raise APIAuthError(f"SerpApi key error: {err}")
             raise Exception(f"SerpApi Flights error: {err}")
 
-        all_flights: list[dict[str, Any]] = response.get("best_flights", []) + response.get(
-            "other_flights", []
-        )
+        all_flights: list[dict[str, Any]] = response.get(
+            "best_flights", []
+        ) + response.get("other_flights", [])
 
         if not all_flights:
             raise NoResultsError(f"{origin}→{destination} on {departure_date}")

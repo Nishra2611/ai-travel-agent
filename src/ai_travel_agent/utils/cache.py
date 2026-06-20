@@ -27,6 +27,7 @@ class CacheManager:
             return self._fake_client()
         try:
             import redis
+
             client: Any = redis.from_url(
                 settings.redis_url,
                 decode_responses=True,
@@ -43,6 +44,7 @@ class CacheManager:
     @staticmethod
     def _fake_client() -> Any:
         import fakeredis
+
         return fakeredis.FakeRedis(decode_responses=True)
 
     def _make_key(self, namespace: str, params: dict[str, Any]) -> str:
@@ -63,7 +65,9 @@ class CacheManager:
             logger.warning("Cache GET failed: %s", exc)
             return None
 
-    def set(self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600) -> bool:
+    def set(
+        self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600
+    ) -> bool:
         key = self._make_key(namespace, params)
         try:
             self.client.setex(key, ttl, json.dumps(value, default=str))
