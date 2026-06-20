@@ -27,6 +27,7 @@ class CacheManager:
             return self._fake_client()
         try:
             import redis
+
             client: Any = redis.from_url(
                 settings.redis_url,
                 decode_responses=True,
@@ -43,6 +44,7 @@ class CacheManager:
     @staticmethod
     def _fake_client() -> Any:
         import fakeredis
+
         return fakeredis.FakeRedis(decode_responses=True)
 
     def _make_key(self, namespace: str, params: dict[str, Any]) -> str:
@@ -63,7 +65,9 @@ class CacheManager:
             logger.warning("Cache GET failed: %s", exc)
             return None
 
-    def set(self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600) -> bool:
+    def set(
+        self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600
+    ) -> bool:
         key = self._make_key(namespace, params)
         try:
             self.client.setex(key, ttl, json.dumps(value, default=str))
@@ -96,4 +100,67 @@ class CacheManager:
 
 
 # Singleton
+
 cache = CacheManager()
+
+def get_redis_client():
+    return cache.client
+
+import functools
+import hashlib
+import json
+from cachetools import TTLCache
+
+_local_cache: TTLCache = TTLCache(maxsize=512, ttl=300)
+
+
+def _make_cache_key(prefix: str, args: tuple, kwargs: dict) -> str:
+    payload = json.dumps({"a": list(args), "k": kwargs}, sort_keys=True, default=str)
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:20]
+    return f"{prefix}:{digest}"
+
+
+def tiered_cache(ttl: int, key_prefix: str):
+    """
+    L1: in-memory TTLCache (fast)
+    L2: Redis/Fakeredis (shared)
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            key = _make_cache_key(key_prefix, args, kwargs)
+
+            # ---------- L1 ----------
+            if key in _local_cache:
+                return _local_cache[key]
+
+            # ---------- L2 ----------
+            try:
+                redis = get_redis_client()
+                raw = redis.get(key)
+                if raw:
+                    value = json.loads(raw)
+                    _local_cache[key] = value
+                    return value
+            except Exception:
+                pass
+
+            # ---------- compute ----------
+            result = func(self, *args, **kwargs)
+
+            # ---------- write L1 ----------
+            _local_cache[key] = result
+
+            # ---------- write L2 ----------
+            try:
+                redis = get_redis_client()
+                redis.set(key, json.dumps(result, default=str), ex=ttl)
+            except Exception:
+                pass
+
+            return result
+
+        return wrapper
+
+    return decorator

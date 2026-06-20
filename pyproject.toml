@@ -70,3 +70,8 @@ ignore_errors = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.poetry]
+packages = [
+    { include = "ai_travel_agent", from = "src" }
+]

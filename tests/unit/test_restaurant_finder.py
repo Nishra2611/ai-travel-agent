@@ -5,9 +5,7 @@ from ai_travel_agent.tools.restaurant_finder import (
 )
 
 
-@patch(
-    "ai_travel_agent.tools.restaurant_finder.places_text_search"
-)
+@patch("ai_travel_agent.tools.restaurant_finder.places_text_search")
 def test_min_rating_filter(
     mock_places,
 ):
@@ -35,9 +33,7 @@ def test_min_rating_filter(
     assert results[0]["name"] == "A"
 
 
-@patch(
-    "ai_travel_agent.tools.restaurant_finder.places_text_search"
-)
+@patch("ai_travel_agent.tools.restaurant_finder.places_text_search")
 def test_budget_filter(
     mock_places,
 ):
@@ -65,9 +61,7 @@ def test_budget_filter(
     assert results[0]["name"] == "Cheap"
 
 
-@patch(
-    "ai_travel_agent.tools.restaurant_finder.places_text_search"
-)
+@patch("ai_travel_agent.tools.restaurant_finder.places_text_search")
 def test_limit_respected(
     mock_places,
 ):

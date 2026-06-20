@@ -41,14 +41,20 @@ class BaseTravelTool(BaseTool):
         try:
             result = self._fetch(**params)
             elapsed = time.perf_counter() - start
-            self._logger.info("%s: %d results in %.2fs", self.cache_namespace, len(result), elapsed)
+            self._logger.info(
+                "%s: %d results in %.2fs", self.cache_namespace, len(result), elapsed
+            )
             self._set_cached(params, result)
             return result
         except Exception as exc:
             elapsed = time.perf_counter() - start
-            self._logger.error("%s failed after %.2fs: %s", self.cache_namespace, elapsed, exc)
+            self._logger.error(
+                "%s failed after %.2fs: %s", self.cache_namespace, elapsed, exc
+            )
             if self.use_mock_on_failure:
-                self._logger.warning("Falling back to mock data for %s", self.cache_namespace)
+                self._logger.warning(
+                    "Falling back to mock data for %s", self.cache_namespace
+                )
                 return self._mock_data(**params)
             raise
 
