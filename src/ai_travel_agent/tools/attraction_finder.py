@@ -28,6 +28,10 @@ def overpass_attractions_near(
     resp = httpx.post(
         OVERPASS_URL,
         data={"data": query},
+        headers={
+            "User-Agent": "ai-travel-agent/1.0",
+            "Accept": "application/json",
+        },
         timeout=30,
     )
     resp.raise_for_status()

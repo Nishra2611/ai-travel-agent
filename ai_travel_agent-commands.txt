@@ -1,2 +1,6 @@
 run backend api:
 poetry run uvicorn ai_travel_agent.api.main:app --reload
+
+run frontend:
+cd frontend
+npm run dev

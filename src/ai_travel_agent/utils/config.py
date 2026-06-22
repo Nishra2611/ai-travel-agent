@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     amadeus_client_secret: str = ""
     openweathermap_api_key: str = ""
     serper_api_key: str = ""
+    google_places_api_key: str = ""
 
     # Redis
     redis_url: str = "redis://localhost:6379"

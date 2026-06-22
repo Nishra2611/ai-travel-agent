@@ -1,9 +1,10 @@
-"""Redis-backed cache for all travel agent API responses."""
-
+import functools
 import hashlib
 import json
 import logging
 from typing import Any
+
+from cachetools import TTLCache
 
 from ai_travel_agent.utils.config import settings
 
@@ -11,8 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class CacheManager:
-    """Redis-backed cache. Falls back to fakeredis when no Redis server is available."""
-
     def __init__(self) -> None:
         self._client: Any = None
 
@@ -25,6 +24,7 @@ class CacheManager:
     def _connect(self) -> Any:
         if settings.use_fake_redis:
             return self._fake_client()
+
         try:
             import redis
 
@@ -35,10 +35,9 @@ class CacheManager:
                 socket_timeout=2,
             )
             client.ping()
-            logger.info("Connected to Redis at %s", settings.redis_url)
             return client
-        except Exception as exc:
-            logger.warning("Redis unavailable (%s) - switching to fakeredis", exc)
+
+        except Exception:
             return self._fake_client()
 
     @staticmethod
@@ -47,50 +46,20 @@ class CacheManager:
 
         return fakeredis.FakeRedis(decode_responses=True)
 
-    def _make_key(self, namespace: str, params: dict[str, Any]) -> str:
-        param_str = json.dumps(params, sort_keys=True, default=str)
-        hash_str = hashlib.md5(param_str.encode()).hexdigest()[:12]
-        return f"travel:{namespace}:{hash_str}"
-
     def get(self, namespace: str, params: dict[str, Any]) -> Any | None:
         key = self._make_key(namespace, params)
-        try:
-            raw = self.client.get(key)
-            if raw:
-                logger.debug("Cache HIT: %s", key)
-                return json.loads(raw)
-            logger.debug("Cache MISS: %s", key)
-            return None
-        except Exception as exc:
-            logger.warning("Cache GET failed: %s", exc)
-            return None
+        raw = self.client.get(key)
+        return json.loads(raw) if raw else None
 
     def set(
         self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600
-    ) -> bool:
+    ) -> None:
         key = self._make_key(namespace, params)
-        try:
-            self.client.setex(key, ttl, json.dumps(value, default=str))
-            logger.debug("Cache SET: %s (TTL=%ds)", key, ttl)
-            return True
-        except Exception as exc:
-            logger.warning("Cache SET failed: %s", exc)
-            return False
+        self.client.setex(key, ttl, json.dumps(value, default=str))
 
-    def invalidate(self, namespace: str, params: dict[str, Any]) -> bool:
-        key = self._make_key(namespace, params)
-        try:
-            self.client.delete(key)
-            return True
-        except Exception as exc:
-            logger.warning("Cache DELETE failed: %s", exc)
-            return False
-
-    def clear(self) -> None:
-        try:
-            self.client.flushall()
-        except Exception as exc:
-            logger.warning("Cache CLEAR failed: %s", exc)
+    def _make_key(self, namespace: str, params: dict[str, Any]) -> str:
+        raw = json.dumps(params, sort_keys=True, default=str)
+        return f"{namespace}:{hashlib.md5(raw.encode()).hexdigest()[:12]}"
 
     def is_healthy(self) -> bool:
         try:
@@ -98,6 +67,92 @@ class CacheManager:
         except Exception:
             return False
 
+    def clear(self) -> None:
+        try:
+            self.client.flushall()
+        except Exception:
+            pass
 
-# Singleton
+
 cache = CacheManager()
+
+
+def get_redis_client() -> Any:
+    return cache.client
+
+
+_local_cache: TTLCache = TTLCache(maxsize=512, ttl=300)
+
+
+def _make_cache_key(prefix: str, args: tuple, kwargs: dict) -> str:
+    """Create a stable cache key from function arguments."""
+    payload = json.dumps(
+        {"a": list(args), "k": kwargs},
+        sort_keys=True,
+        default=str,
+    )
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:20]
+    return f"{prefix}:{digest}"
+
+
+def tiered_cache(ttl: int, key_prefix: str):
+    """
+    Two-level read-through cache.
+
+    L1:
+        cachetools TTLCache (in-process)
+
+    L2:
+        Redis (shared across workers)
+
+    Flow:
+        L1 hit -> return
+        L2 hit -> populate L1 and return
+        miss -> execute function -> store in both
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            key = _make_cache_key(key_prefix, args, kwargs)
+
+            # L1 cache hit
+            if key in _local_cache:
+                return _local_cache[key]
+
+            # L2 cache hit
+            try:
+                redis = get_redis_client()
+                raw = redis.get(key)
+
+                if raw is not None:
+                    value = json.loads(raw)
+
+                    _local_cache[key] = value
+                    return value
+
+            except Exception:
+                pass
+
+            # Cache miss
+            result = func(self, *args, **kwargs)
+
+            # Save to L1
+            _local_cache[key] = result
+
+            # Save to L2
+            try:
+                redis = get_redis_client()
+                redis.set(
+                    key,
+                    json.dumps(result, default=str),
+                    ex=ttl,
+                )
+            except Exception:
+                pass
+
+            return result
+
+        return wrapper
+
+    return decorator
