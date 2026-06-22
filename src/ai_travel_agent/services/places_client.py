@@ -1,42 +1,55 @@
-import os
 from typing import Any
 
 import httpx
 
-PLACES_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+from ai_travel_agent.utils.config import settings
+
+PLACES_URL = "https://places.googleapis.com/v1/places:searchText"
 
 
 def places_text_search(
     query: str,
     max_results: int = 20,
 ) -> list[dict[str, Any]]:
-    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    api_key = settings.google_places_api_key
+    print("API KEY FOUND:", bool(api_key))
 
     if not api_key:
         return []
 
-    response = httpx.get(
+    response = httpx.post(
         PLACES_URL,
-        params={
-            "query": query,
-            "key": api_key,
+        headers={
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": (
+                "places.displayName,"
+                "places.formattedAddress,"
+                "places.location,"
+                "places.rating,"
+                "places.priceLevel,"
+                "places.types"
+            ),
+        },
+        json={
+            "textQuery": query,
         },
         timeout=10,
     )
-
+    print("STATUS:", response.status_code)
+    print("RESPONSE:", response.text)
     response.raise_for_status()
 
-    results: list[dict[str, Any]] = []
+    results = []
 
-    for place in response.json().get("results", [])[:max_results]:
+    for place in response.json().get("places", [])[:max_results]:
         results.append(
             {
-                "name": place.get("name"),
-                "lat": place.get("geometry", {}).get("location", {}).get("lat"),
-                "lng": place.get("geometry", {}).get("location", {}).get("lng"),
+                "name": place.get("displayName", {}).get("text"),
+                "lat": place.get("location", {}).get("latitude"),
+                "lng": place.get("location", {}).get("longitude"),
                 "rating": place.get("rating"),
-                "price_level": place.get("price_level"),
-                "address": place.get("formatted_address"),
+                "price_level": place.get("priceLevel"),
+                "address": place.get("formattedAddress"),
                 "types": place.get("types", []),
             }
         )
@@ -58,7 +71,7 @@ def find_place_rating(
 
     rating = results[0].get("rating")
 
-    if isinstance(rating, (int, float)):
+    if isinstance(rating, int | float):
         return float(rating)
 
     return None

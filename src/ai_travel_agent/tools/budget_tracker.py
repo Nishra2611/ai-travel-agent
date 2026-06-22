@@ -9,7 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class BudgetTrackerInput(BaseModel):
-    trip_id: str = Field(..., description="Unique ID for this trip's ledger, e.g. 'paris-dec-2025'")
+    trip_id: str = Field(
+        ..., description="Unique ID for this trip's ledger, e.g. 'paris-dec-2025'"
+    )
     action: Literal["set_budget", "add_expense", "get_summary", "reset"]
     total_budget: float | None = Field(None)
     category: str | None = Field(None)
@@ -52,8 +54,12 @@ class BudgetTrackerTool(BaseTool):
                 raise ValueError("total_budget is required")
 
             redis.set(total_key, str(total_budget))
-            return {"status": "budget_set", "trip_id": trip_id}
 
+            return {
+                "status": "budget_set",
+                "trip_id": trip_id,
+                "total_budget": float(total_budget),
+            }
         if action == "add_expense":
             if not category or amount is None:
                 raise ValueError("category and amount required")
@@ -73,7 +79,9 @@ class BudgetTrackerTool(BaseTool):
             by_category: dict[str, float] = {}
 
             for e in ledger_data:
-                by_category[e["category"]] = by_category.get(e["category"], 0) + e["amount"]
+                by_category[e["category"]] = (
+                    by_category.get(e["category"], 0) + e["amount"]
+                )
 
             spent = sum(by_category.values())
             total = redis.get(total_key)
@@ -83,10 +91,12 @@ class BudgetTrackerTool(BaseTool):
             return {
                 "spent_total": spent,
                 "by_category": by_category,
-                "remaining": (total_val - spent) if total_val else None,
+                "total_budget": total_val,
+                "remaining": (total_val - spent if total_val is not None else None),
+                "entry_count": len(ledger_data),
             }
 
         raise ValueError("Invalid action")
 
     async def _arun(self, **kwargs: Any) -> dict[str, Any]:
-        return self._run(**kwargs)
+        return self._run(**kwargs)

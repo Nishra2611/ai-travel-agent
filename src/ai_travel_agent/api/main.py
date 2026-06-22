@@ -2,15 +2,20 @@
 
 from typing import Any
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from ai_travel_agent.tools.attraction_finder import AttractionFinderTool
 from ai_travel_agent.tools.budget_tracker import BudgetTrackerTool
 from ai_travel_agent.tools.dummy_tool import DummyFlightTool
 from ai_travel_agent.tools.hotel_search import HotelSearchTool
+from ai_travel_agent.tools.restaurant_finder import RestaurantFinderTool
 from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.cache import cache
+
+_attraction_tool = AttractionFinderTool()
+_restaurant_tool = RestaurantFinderTool()
 
 app = FastAPI(
     title="AI Travel Agent",
@@ -85,7 +90,6 @@ def get_weather(city: str, days: int = 7) -> list[dict[str, Any]]:
     return _weather_tool._run(city=city, days=days)
 
 
-
 @app.get("/api/hotels")
 def search_hotels(
     city: str,
@@ -113,4 +117,42 @@ def search_hotels(
         "adults": adults,
         "count": len(result),
         "results": result,
-    }
+    }
+
+
+@app.get("/api/trip/attractions")
+def get_attractions(
+    city: str,
+    country: str | None = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Top attractions for a city — name, lat/lng, hours, rating."""
+    try:
+        return _attraction_tool._run(city=city, country=country, limit=limit)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"attraction lookup failed: {exc}"
+        ) from exc
+
+
+@app.get("/api/trip/restaurants")
+def get_restaurants(
+    city: str,
+    cuisine: str | None = None,
+    budget: str | None = None,  # "$" | "$$" | "$$$" | "$$$$"
+    min_rating: float = 0.0,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Restaurants filtered by cuisine, budget tier, and minimum rating."""
+    try:
+        return _restaurant_tool._run(
+            city=city,
+            cuisine=cuisine,
+            budget=budget,
+            min_rating=min_rating,
+            limit=limit,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"restaurant lookup failed: {exc}"
+        ) from exc

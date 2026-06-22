@@ -28,7 +28,7 @@ class CacheManager:
         try:
             import redis
 
-            client = redis.from_url(
+            client: Any = redis.from_url(
                 settings.redis_url,
                 decode_responses=True,
                 socket_connect_timeout=2,
@@ -43,6 +43,7 @@ class CacheManager:
     @staticmethod
     def _fake_client() -> Any:
         import fakeredis
+
         return fakeredis.FakeRedis(decode_responses=True)
 
     def get(self, namespace: str, params: dict[str, Any]) -> Any | None:
@@ -50,7 +51,9 @@ class CacheManager:
         raw = self.client.get(key)
         return json.loads(raw) if raw else None
 
-    def set(self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600) -> None:
+    def set(
+        self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600
+    ) -> None:
         key = self._make_key(namespace, params)
         self.client.setex(key, ttl, json.dumps(value, default=str))
 
@@ -71,7 +74,6 @@ class CacheManager:
             pass
 
 
-
 cache = CacheManager()
 
 
@@ -79,31 +81,73 @@ def get_redis_client() -> Any:
     return cache.client
 
 
-
 _local_cache: TTLCache = TTLCache(maxsize=512, ttl=300)
 
 
 def _make_cache_key(prefix: str, args: tuple, kwargs: dict) -> str:
-    payload = json.dumps({"a": args, "k": kwargs}, sort_keys=True, default=str)
-    return f"{prefix}:{hashlib.sha256(payload.encode()).hexdigest()[:20]}"
+    """Create a stable cache key from function arguments."""
+    payload = json.dumps(
+        {"a": list(args), "k": kwargs},
+        sort_keys=True,
+        default=str,
+    )
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:20]
+    return f"{prefix}:{digest}"
 
 
 def tiered_cache(ttl: int, key_prefix: str):
+    """
+    Two-level read-through cache.
+
+    L1:
+        cachetools TTLCache (in-process)
+
+    L2:
+        Redis (shared across workers)
+
+    Flow:
+        L1 hit -> return
+        L2 hit -> populate L1 and return
+        miss -> execute function -> store in both
+    """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             key = _make_cache_key(key_prefix, args, kwargs)
 
+            # L1 cache hit
             if key in _local_cache:
                 return _local_cache[key]
 
-            result = func(self, *args, **kwargs)
-
-            _local_cache[key] = result
-
+            # L2 cache hit
             try:
                 redis = get_redis_client()
-                redis.set(key, json.dumps(result, default=str), ex=ttl)
+                raw = redis.get(key)
+
+                if raw is not None:
+                    value = json.loads(raw)
+
+                    _local_cache[key] = value
+                    return value
+
+            except Exception:
+                pass
+
+            # Cache miss
+            result = func(self, *args, **kwargs)
+
+            # Save to L1
+            _local_cache[key] = result
+
+            # Save to L2
+            try:
+                redis = get_redis_client()
+                redis.set(
+                    key,
+                    json.dumps(result, default=str),
+                    ex=ttl,
+                )
             except Exception:
                 pass
 
@@ -111,4 +155,4 @@ def tiered_cache(ttl: int, key_prefix: str):
 
         return wrapper
 
-    return decorator
+    return decorator

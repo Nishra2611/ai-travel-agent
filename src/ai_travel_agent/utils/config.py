@@ -8,8 +8,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     amadeus_client_id: str = ""
     amadeus_client_secret: str = ""
-    openweathermap_api_key: str = "41eef9a9f37a46b699368566ecdcc270"
-    serper_api_key: str = "0b1bc5bd2f38d842c7c889b8ba81cde7b6f639b3"
+    openweathermap_api_key: str = ""
+    serper_api_key: str = ""
+    google_places_api_key: str = ""
 
     # Redis
     redis_url: str = "redis://localhost:6379"
