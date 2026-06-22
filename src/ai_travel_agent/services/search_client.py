@@ -35,27 +35,4 @@ def web_search(
             for r in organic
         ]
 
-    tavily_key = settings.tavily_api_key
-
-    if tavily_key:
-        resp = httpx.post(
-            "https://api.tavily.com/search",
-            json={
-                "api_key": tavily_key,
-                "query": query,
-                "max_results": num_results,
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-
-        return [
-            {
-                "title": r.get("title"),
-                "snippet": r.get("content"),
-                "link": r.get("url"),
-            }
-            for r in resp.json().get("results", [])
-        ]
-
-    raise RuntimeError("No SERPER_API_KEY or TAVILY_API_KEY configured")
+    raise RuntimeError("No SERPER_API_KEY configured")

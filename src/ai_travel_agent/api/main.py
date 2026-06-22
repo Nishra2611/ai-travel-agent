@@ -125,7 +125,7 @@ def get_attractions(
     city: str,
     country: str | None = None,
     limit: int = 10,
-):
+) -> list[dict[str, Any]]:
     """Top attractions for a city — name, lat/lng, hours, rating."""
     try:
         return _attraction_tool._run(city=city, country=country, limit=limit)
@@ -142,7 +142,7 @@ def get_restaurants(
     budget: str | None = None,  # "$" | "$$" | "$$$" | "$$$$"
     min_rating: float = 0.0,
     limit: int = 10,
-):
+) -> list[dict[str, Any]]:
     """Restaurants filtered by cuisine, budget tier, and minimum rating."""
     try:
         return _restaurant_tool._run(
