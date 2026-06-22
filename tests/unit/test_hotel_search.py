@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.tools.hotel_search import HotelSearchTool
+from ai_travel_agent.tools.hotel_search import HotelSearchTool
 
 
 @pytest.fixture

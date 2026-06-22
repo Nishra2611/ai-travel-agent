@@ -23,7 +23,8 @@ dependencies = [
     "fakeredis (>=2.21.0,<3.0.0)",
     "pydantic-settings (>=2.0.0,<3.0.0)",
     "cachetools (>=7.1.4,<8.0.0)",
-    "google-search-results (>=2.4.2,<3.0.0)"
+    "google-search-results (>=2.4.2,<3.0.0)",
+    "tenacity (>=9.1.4,<10.0.0)"
 ]
 
 
@@ -51,6 +52,7 @@ target-version = ["py311"]
 
 [tool.ruff]
 line-length = 88
+src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
@@ -62,9 +64,14 @@ strict = true
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["src.utils.cache", "src.tools.base", "src.tools.dummy_tool"]
+module = ["ai_travel_agent.utils.cache", "ai_travel_agent.tools.base", "ai_travel_agent.tools.dummy_tool"]
 ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.poetry]
+packages = [
+    { include = "ai_travel_agent", from = "src" }
+]

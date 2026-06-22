@@ -1,4 +1,4 @@
-from src.utils.cache import cache
+from ai_travel_agent.utils.cache import cache
 
 
 def test_cache():

@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from src.parsers.preference_parser import PreferenceParserTool
+from ai_travel_agent.parsers.preference_parser import PreferenceParserTool
 
 tool = PreferenceParserTool()
 
