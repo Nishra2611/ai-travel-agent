@@ -4,7 +4,6 @@ from ai_travel_agent.tools.base import BaseTravelTool
 
 
 class DummyFlightTool(BaseTravelTool):
-
     name: str = "dummy_flight"
     description: str = "Test Tool"
     cache_namespace: str = "flights"

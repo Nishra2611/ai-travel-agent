@@ -26,4 +26,4 @@ def geocode(query: str) -> dict[str, Any] | None:
         "lat": float(data[0]["lat"]),
         "lng": float(data[0]["lon"]),
         "display_name": data[0]["display_name"],
-    }
+    }

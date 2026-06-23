@@ -67,7 +67,9 @@ class WeatherCheckerTool(BaseTool):
         wait=wait_exponential(min=1, max=4),
         stop=stop_after_attempt(3),
     )
-    def _onecall(self, loc: dict[str, Any], key: str, days: int) -> list[dict[str, Any]]:
+    def _onecall(
+        self, loc: dict[str, Any], key: str, days: int
+    ) -> list[dict[str, Any]]:
 
         resp = httpx.get(
             "https://api.openweathermap.org/data/3.0/onecall",
@@ -86,16 +88,22 @@ class WeatherCheckerTool(BaseTool):
         result: list[dict[str, Any]] = []
 
         for day in resp.json().get("daily", [])[:days]:
-            desc = day["weather"][0]["description"] if "weather" in day and day["weather"] else ""
-            result.append({
-                "date": datetime.fromtimestamp(day["dt"]).strftime("%Y-%m-%d"),
-                "condition": desc.capitalize() if desc else "",
-                "temp_min": day["temp"]["min"],
-                "temp_max": day["temp"]["max"],
-                "rain_chance_pct": int(day.get("pop", 0) * 100),
-                "humidity_pct": day.get("humidity", 0),
-                "rain_chance": day.get("pop", 0),
-            })
+            desc = (
+                day["weather"][0]["description"]
+                if "weather" in day and day["weather"]
+                else ""
+            )
+            result.append(
+                {
+                    "date": datetime.fromtimestamp(day["dt"]).strftime("%Y-%m-%d"),
+                    "condition": desc.capitalize() if desc else "",
+                    "temp_min": day["temp"]["min"],
+                    "temp_max": day["temp"]["max"],
+                    "rain_chance_pct": int(day.get("pop", 0) * 100),
+                    "humidity_pct": day.get("humidity", 0),
+                    "rain_chance": day.get("pop", 0),
+                }
+            )
 
         return result
 
@@ -104,7 +112,9 @@ class WeatherCheckerTool(BaseTool):
         wait=wait_exponential(min=1, max=4),
         stop=stop_after_attempt(3),
     )
-    def _forecast5(self, loc: dict[str, Any], key: str, days: int) -> list[dict[str, Any]]:
+    def _forecast5(
+        self, loc: dict[str, Any], key: str, days: int
+    ) -> list[dict[str, Any]]:
 
         resp = httpx.get(
             "https://api.openweathermap.org/data/2.5/forecast",
@@ -128,8 +138,14 @@ class WeatherCheckerTool(BaseTool):
         result: list[dict[str, Any]] = []
 
         for date, slots in list(by_day.items())[:days]:
-            temps = [s["main"]["temp"] for s in slots if "main" in s and "temp" in s["main"]]
-            humidities = [s["main"]["humidity"] for s in slots if "main" in s and "humidity" in s["main"]]
+            temps = [
+                s["main"]["temp"] for s in slots if "main" in s and "temp" in s["main"]
+            ]
+            humidities = [
+                s["main"]["humidity"]
+                for s in slots
+                if "main" in s and "humidity" in s["main"]
+            ]
             pops = [s.get("pop", 0) for s in slots]
 
             # Use midday slot for condition if possible, otherwise first slot
@@ -140,15 +156,18 @@ class WeatherCheckerTool(BaseTool):
             elif slots and "weather" in slots[0] and slots[0]["weather"]:
                 desc = slots[0]["weather"][0].get("description", "")
 
-            result.append({
-                "date": date,
-                "temp_min": min(temps) if temps else 0.0,
-                "temp_max": max(temps) if temps else 0.0,
-                "condition": desc.capitalize() if desc else "",
-                "rain_chance_pct": int(max(pops) * 100) if pops else 0,
-                "humidity_pct": int(sum(humidities) / len(humidities)) if humidities else 0,
-                "rain_chance": max(pops) if pops else 0.0,
-            })
+            result.append(
+                {
+                    "date": date,
+                    "temp_min": min(temps) if temps else 0.0,
+                    "temp_max": max(temps) if temps else 0.0,
+                    "condition": desc.capitalize() if desc else "",
+                    "rain_chance_pct": int(max(pops) * 100) if pops else 0,
+                    "humidity_pct": (
+                        int(sum(humidities) / len(humidities)) if humidities else 0
+                    ),
+                    "rain_chance": max(pops) if pops else 0.0,
+                }
+            )
 
         return result
-
