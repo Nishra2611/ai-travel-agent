@@ -1,6 +1,14 @@
 [project]
 name = "ai-travel-agent"
 version = "0.1.0"
+
+[tool.poetry]
+name = "ai-travel-agent"
+version = "0.1.0"
+packages = [
+    { include = "ai_travel_agent", from = "src" }
+]
+
 description = ""
 authors = [
     {name = "Nishra Gajkandh",email = "nishragajkandh@gmail.com"}
