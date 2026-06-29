@@ -12,7 +12,6 @@ def places_text_search(
     max_results: int = 20,
 ) -> list[dict[str, Any]]:
     api_key = settings.google_places_api_key
-    print("API KEY FOUND:", bool(api_key))
 
     if not api_key:
         return []

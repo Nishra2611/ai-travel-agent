@@ -13,8 +13,8 @@ const API_BASE = "http://localhost:8000";
 const CATEGORIES = ["accommodation", "food", "attractions", "transport", "shopping", "misc"];
 
 function money(n) {
-  if (n == null) return "GBP --";
-  return "GBP " + Math.round(n).toLocaleString();
+  if (n == null) return "USD --";
+  return "USD " + Math.round(n).toLocaleString();
 }
 
 function CategoryBar({ category, amount, maxAmount }) {
