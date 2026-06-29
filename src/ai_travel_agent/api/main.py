@@ -1,5 +1,8 @@
-"""FastAPI application entry point."""
+"""FastAPI application — Week 4: agent endpoint added."""
 
+from __future__ import annotations
+
+import uuid
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
@@ -14,13 +17,10 @@ from ai_travel_agent.tools.restaurant_finder import RestaurantFinderTool
 from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.cache import cache
 
-_attraction_tool = AttractionFinderTool()
-_restaurant_tool = RestaurantFinderTool()
-
 app = FastAPI(
     title="AI Travel Agent",
     description="Autonomous AI Travel Planning Agent API",
-    version="0.1.0",
+    version="0.4.0",
 )
 
 app.add_middleware(
@@ -31,10 +31,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── tool singletons ───────────────────────────────────────────────────────────
 flight_tool = DummyFlightTool()
 hotel_tool = HotelSearchTool()
+_attraction_tool = AttractionFinderTool()
+_restaurant_tool = RestaurantFinderTool()
 _weather_tool = WeatherCheckerTool()
 _budget_tool = BudgetTrackerTool()
+
+# ── agent (lazy import so server starts even if Ollama is offline) ────────────
+_agent = None
+
+
+def _get_agent() -> Any:
+    global _agent
+    if _agent is None:
+        from ai_travel_agent.agents.graph import build_graph
+
+        _agent = build_graph()
+    return _agent
+
+
+# ── request/response models ───────────────────────────────────────────────────
 
 
 class BudgetPayload(BaseModel):
@@ -46,12 +64,41 @@ class BudgetPayload(BaseModel):
     description: str | None = None
 
 
+class PlanRequest(BaseModel):
+    message: str
+    session_id: str | None = None  # reuse for conversation continuity
+
+
+class PlanResponse(BaseModel):
+    session_id: str
+    status: str
+    destination: str | None = None
+    flights: list[dict[str, Any]] = []
+    hotels: list[dict[str, Any]] = []
+    attractions: list[dict[str, Any]] = []
+    restaurants: list[dict[str, Any]] = []
+    weather: list[dict[str, Any]] = []
+    budget: dict[str, Any] = {}
+    errors: dict[str, str] = {}
+    message: str = ""
+
+
+# ── existing endpoints (unchanged) ───────────────────────────────────────────
+
+
 @app.get("/")
 def root() -> dict[str, Any]:
     return {
         "message": "AI Travel Agent is running",
         "version": app.version,
-        "endpoints": ["/health", "/flights", "/api/hotels", "/cache/health", "/docs"],
+        "endpoints": [
+            "/health",
+            "/flights",
+            "/api/hotels",
+            "/api/plan",
+            "/cache/health",
+            "/docs",
+        ],
     }
 
 
@@ -109,7 +156,6 @@ def search_hotels(
         min_rating=min_rating,
         hotel_class=hotel_class,
     )
-
     return {
         "city": city,
         "check_in": check_in,
@@ -122,11 +168,8 @@ def search_hotels(
 
 @app.get("/api/trip/attractions")
 def get_attractions(
-    city: str,
-    country: str | None = None,
-    limit: int = 10,
+    city: str, country: str | None = None, limit: int = 10
 ) -> list[dict[str, Any]]:
-    """Top attractions for a city — name, lat/lng, hours, rating."""
     try:
         return _attraction_tool._run(city=city, country=country, limit=limit)
     except Exception as exc:
@@ -139,11 +182,10 @@ def get_attractions(
 def get_restaurants(
     city: str,
     cuisine: str | None = None,
-    budget: str | None = None,  # "$" | "$$" | "$$$" | "$$$$"
+    budget: str | None = None,
     min_rating: float = 0.0,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    """Restaurants filtered by cuisine, budget tier, and minimum rating."""
     try:
         return _restaurant_tool._run(
             city=city,
@@ -156,3 +198,61 @@ def get_restaurants(
         raise HTTPException(
             status_code=502, detail=f"restaurant lookup failed: {exc}"
         ) from exc
+
+
+# ── NEW: agent endpoint ───────────────────────────────────────────────────────
+
+
+@app.post("/api/plan", response_model=PlanResponse)
+def plan_trip(req: PlanRequest) -> PlanResponse:
+    """
+    End-to-end trip planning endpoint.
+
+    POST /api/plan
+    {
+      "message": "I want to visit Paris for 5 days in July under $3000",
+      "session_id": "optional-string-for-conversation-continuity"
+    }
+
+    The LangGraph agent:
+      1. Parses the message (Ollama LLM)
+      2. Runs all 6 search tools sequentially
+      3. Assembles results into a structured response
+
+    session_id lets you send follow-up messages and get updated results
+    while retaining conversation history via the SQLite checkpointer.
+    """
+    session_id = req.session_id or f"session_{uuid.uuid4().hex[:8]}"
+
+    try:
+        graph = _get_agent()
+        initial_state = {
+            "raw_input": req.message,
+            "status": "parse",
+            "messages": [{"role": "user", "content": req.message}],
+        }
+        config = {"configurable": {"thread_id": session_id}}
+        final_state = graph.invoke(initial_state, config=config)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Agent failed: {exc}") from exc
+
+    output: dict[str, Any] = final_state.get("final_output") or {}
+    messages: list[dict[str, str]] = final_state.get("messages") or []
+    last_msg = next(
+        (m["content"] for m in reversed(messages) if m.get("role") == "assistant"),
+        "Trip planning complete.",
+    )
+
+    return PlanResponse(
+        session_id=session_id,
+        status=final_state.get("status", "done"),
+        destination=output.get("destination"),
+        flights=output.get("flights", []),
+        hotels=output.get("hotels", []),
+        attractions=output.get("attractions", []),
+        restaurants=output.get("restaurants", []),
+        weather=output.get("weather", []),
+        budget=output.get("budget", {}),
+        errors=output.get("errors", {}),
+        message=last_msg,
+    )
