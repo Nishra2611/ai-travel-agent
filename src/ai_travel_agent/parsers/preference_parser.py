@@ -75,8 +75,11 @@ class PreferenceParserTool(BaseTravelTool):
 
     def model_post_init(self, __context: Any) -> None:
         super().model_post_init(__context)
-        model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
-        self._llm = OllamaLLM(model=model_name)
+        model_name = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+        self._llm = OllamaLLM(
+            model=model_name,
+            temperature=0,
+        )
         logger.info("PreferenceParserTool: using Ollama model=%s", model_name)
 
     def _run(self, user_input: str) -> dict[str, Any]:
