@@ -46,7 +46,7 @@ class WeatherCheckerTool(BaseTool):
 
         if not key or key == "your-openweather-api-key":
             logger.warning("Missing OpenWeatherMap API key — returning mock forecast")
-            return self._mock_forecast(city, days)
+            return []
 
         loc = geocode(city)
         if not loc:

@@ -108,7 +108,7 @@ class AttractionFinderTool(BaseTool):
         center = geocode(query)
 
         if center is None:
-            return self._mock_attractions(city, limit)
+            return []
 
         try:
             candidates = overpass_attractions_near(
