@@ -41,7 +41,8 @@ def get_travel_time_minutes(
     data: dict[str, Any] = resp.json()
     if data.get("code") != "Ok" or not data.get("routes"):
         raise ValueError(f"OSRM no route: {data.get('code')}")
-    return max(1, round(data["routes"][0]["duration"] / 60))
+    duration = float(data["routes"][0]["duration"])
+    return max(1, round(duration / 60))
 
 
 def get_travel_time_safe(

@@ -111,7 +111,7 @@ class ItineraryBuilderTool(BaseTravelTool):
     cache_namespace: str = "itinerary"
     cache_ttl: int = 1800  # 30 min
 
-    def _run(  # type: ignore[override]
+    def _run(
         self,
         preferences: dict[str, Any],
         flights: list[dict[str, Any]] | None = None,
@@ -145,10 +145,10 @@ class ItineraryBuilderTool(BaseTravelTool):
         return result
 
     # these satisfy BaseTravelTool abstract methods but are not used
-    def _fetch(self, **kwargs: Any) -> list[dict[str, Any]]:  # type: ignore[override]
+    def _fetch(self, **kwargs: Any) -> list[dict[str, Any]]:
         raise NotImplementedError
 
-    def _mock_data(self, **kwargs: Any) -> list[dict[str, Any]]:  # type: ignore[override]
+    def _mock_data(self, **kwargs: Any) -> list[dict[str, Any]]:
         raise NotImplementedError
 
 
@@ -685,7 +685,7 @@ class _ItineraryBuilder:
 
     def _hotel_name(self) -> str:
         if self.hotels:
-            return self.hotels[0].get("name", f"Hotel in {self.destination}")
+            return str(self.hotels[0].get("name", f"Hotel in {self.destination}"))
         return f"Hotel in {self.destination}"
 
     # ── cost computation ──────────────────────────────────────────────────────
@@ -741,10 +741,10 @@ class _ItineraryBuilder:
         return pool[(day_num - 2) % len(pool)]
 
     def _format_weather(self, w: dict[str, Any]) -> str:
-        desc = w.get("description", "")
+        desc = str(w.get("description", ""))
         tmax = w.get("temp_max", "")
         tmin = w.get("temp_min", "")
-        if tmax and tmin:
+        if tmax is not None and tmin is not None:
             return f"{desc} · {tmin}°–{tmax}°C"
         return desc
 

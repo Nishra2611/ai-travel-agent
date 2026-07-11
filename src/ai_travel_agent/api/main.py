@@ -111,12 +111,12 @@ def search_flights(
 
 @app.post("/api/trip/budget")
 def update_budget(payload: BudgetPayload) -> dict[str, Any]:
-    return _budget_tool._run(**payload.model_dump())  # type: ignore[return-value]
+    return _budget_tool._run(**payload.model_dump())
 
 
 @app.get("/api/trip/budget/{trip_id}")
 def get_budget_summary(trip_id: str) -> dict[str, Any]:
-    return _budget_tool._run(trip_id=trip_id, action="get_summary")  # type: ignore[return-value]
+    return _budget_tool._run(trip_id=trip_id, action="get_summary")
 
 
 @app.get("/api/trip/weather")
