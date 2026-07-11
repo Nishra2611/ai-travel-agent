@@ -1,6 +1,4 @@
 """
-ai_travel_agent/agents/graph.py
-
 Builds and compiles the LangGraph StateGraph.
 
 Graph topology:
@@ -36,6 +34,15 @@ Usage:
         {"raw_input": "Paris 5 days $3000", "status": "parse", "messages": []},
         config={"configurable": {"thread_id": "session-abc"}},
     )
+
+New pipeline:
+  parse_preferences
+    → search_flights → search_hotels → find_attractions
+    → find_restaurants → check_weather
+    → track_budget
+    → build_itinerary     ← NEW Week 5
+    → assemble_output
+    → END
 """
 
 from __future__ import annotations
@@ -48,6 +55,7 @@ from langgraph.graph import END, START, StateGraph
 
 from ai_travel_agent.agents.nodes import (
     assemble_output,
+    build_itinerary,
     check_weather,
     find_attractions,
     find_restaurants,
@@ -62,13 +70,10 @@ from ai_travel_agent.agents.supervisor import supervisor_router
 from ai_travel_agent.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-# SQLite DB path — relative to project root
 _DB_PATH = "data/checkpoints.db"
 
 
-def _make_checkpointer(db_path: str = _DB_PATH) -> SqliteSaver:
-    """Create (or reuse) a SQLite checkpointer."""
+def _make_checkpointer(db_path: str) -> SqliteSaver:
     import os
 
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -77,22 +82,9 @@ def _make_checkpointer(db_path: str = _DB_PATH) -> SqliteSaver:
 
 
 def build_graph(db_path: str = _DB_PATH) -> Any:
-    """
-    Build, compile, and return the compiled LangGraph agent.
-
-    Parameters
-    ----------
-    db_path : str
-        Path to the SQLite file used for session checkpointing.
-        Defaults to data/checkpoints.db in the project root.
-
-    Returns
-    -------
-    CompiledStateGraph  (LangGraph compiled graph object)
-    """
     builder = StateGraph(TravelState)
 
-    # ── register nodes ──────────────────────────────────────────────────
+    # ── nodes ──────────────────────────────────────────────────────────
     builder.add_node("parse_preferences", parse_preferences)
     builder.add_node("search_flights", search_flights)
     builder.add_node("search_hotels", search_hotels)
@@ -100,11 +92,11 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
     builder.add_node("find_restaurants", find_restaurants)
     builder.add_node("check_weather", check_weather)
     builder.add_node("track_budget", track_budget)
+    builder.add_node("build_itinerary", build_itinerary)  # ← new
     builder.add_node("assemble_output", assemble_output)
     builder.add_node("handle_error", handle_error)
 
-    # ── entry edge ───────────────────────────────────────────────────────
-    # START → supervisor decides first node based on initial status
+    # ── entry ──────────────────────────────────────────────────────────
     builder.add_conditional_edges(
         START,
         supervisor_router,
@@ -115,44 +107,32 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
         },
     )
 
-    # ── after parse → supervisor routes to search ─────────────────────
+    # ── parse → search ─────────────────────────────────────────────────
     builder.add_conditional_edges(
         "parse_preferences",
         supervisor_router,
-        {
-            "search_flights": "search_flights",
-            "handle_error": "handle_error",
-        },
+        {"search_flights": "search_flights", "handle_error": "handle_error"},
     )
 
-    # ── parallel search fan-out ──────────────────────────────────────
-    # All four search nodes + weather run independently.
-    # Each one finishes and writes its slice of state.
-    # After ALL finish, we manually set status="budget" in each node
-    # by chaining them sequentially here (true parallelism comes in Week 9).
-    # For Week 4: sequential chain, same result, simpler to debug.
+    # ── sequential search chain ────────────────────────────────────────
     builder.add_edge("search_flights", "search_hotels")
     builder.add_edge("search_hotels", "find_attractions")
     builder.add_edge("find_attractions", "find_restaurants")
     builder.add_edge("find_restaurants", "check_weather")
 
-    # ── after all search nodes → budget ─────────────────────────────
+    # ── search → budget → build → assemble ────────────────────────────
     builder.add_edge("check_weather", "track_budget")
+    builder.add_edge("track_budget", "build_itinerary")  # ← new
+    builder.add_edge("build_itinerary", "assemble_output")  # ← new
 
-    # ── after budget → assemble ──────────────────────────────────────
-    builder.add_edge("track_budget", "assemble_output")
-
-    # ── terminal edges ───────────────────────────────────────────────
+    # ── terminal ───────────────────────────────────────────────────────
     builder.add_edge("assemble_output", END)
     builder.add_edge("handle_error", END)
 
-    # ── compile with SQLite checkpointer ─────────────────────────────
     checkpointer = _make_checkpointer(db_path)
     compiled = builder.compile(checkpointer=checkpointer)
-
-    logger.info("LangGraph agent compiled — nodes: %d", len(builder.nodes))
+    logger.info("Graph compiled — %d nodes (Week 5)", len(builder.nodes))
     return compiled
 
 
-# Module-level singleton — imported by API and scripts
 agent = build_graph()
