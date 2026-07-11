@@ -4,15 +4,15 @@ Week 6 — ConflictDetector
 Pure, deterministic checks (no LLM calls). Each check returns Conflict
 objects; ConflictResolver decides what to do with them.
 """
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, time
-from enum import Enum
-from typing import Callable
+from enum import StrEnum
 
 from ai_travel_agent.models.itinerary import DayPlan, Itinerary, ItineraryActivity
 
 
-class ConflictType(str, Enum):
+class ConflictType(StrEnum):
     TIME_OVERLAP = "time_overlap"
     IMPOSSIBLE_TRAVEL = "impossible_travel"
     OPENING_HOURS = "opening_hours"
@@ -21,7 +21,7 @@ class ConflictType(str, Enum):
     TOO_MANY_ACTIVITIES = "too_many_activities"
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     AUTO_FIXABLE = "auto_fixable"
     NEEDS_USER = "needs_user"
 

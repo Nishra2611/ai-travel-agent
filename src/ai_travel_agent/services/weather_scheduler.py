@@ -12,9 +12,19 @@ Algorithm:
 """
 from dataclasses import dataclass, field
 
-from ai_travel_agent.models.itinerary import DayPlan, Environment, Itinerary, ItineraryActivity, WeatherForecast
+from ai_travel_agent.models.itinerary import (
+    DayPlan,
+    Environment,
+    Itinerary,
+    ItineraryActivity,
+    WeatherForecast,
+)
 from ai_travel_agent.services.ollama_client import OllamaClient
-from ai_travel_agent.services.weather_scorer import WeatherRating, WeatherScore, score_trip
+from ai_travel_agent.services.weather_scorer import (
+    WeatherRating,
+    WeatherScore,
+    score_trip,
+)
 
 
 @dataclass

@@ -8,13 +8,18 @@ import unittest
 from datetime import date, time
 
 from ai_travel_agent.models.itinerary import (
-    Environment, Itinerary, ItineraryActivity, DayPlan, TimeSlot, WeatherForecast,
+    DayPlan,
+    Environment,
+    Itinerary,
+    ItineraryActivity,
+    TimeSlot,
+    WeatherForecast,
+)
+from ai_travel_agent.services.weather_scheduler import (
+    WeatherScheduler,
+    _adaptation_rate,
 )
 from ai_travel_agent.services.weather_scorer import WeatherRating, score_day, score_trip
-from ai_travel_agent.services.weather_scheduler import (
-    WeatherScheduler, _adaptation_rate, weather_adaptation_rate_metric,
-)
-
 
 # ── stubs ─────────────────────────────────────────────────────────────────────
 

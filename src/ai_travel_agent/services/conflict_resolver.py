@@ -12,7 +12,11 @@ import logging
 from datetime import datetime, time, timedelta
 
 from ai_travel_agent.models.itinerary import (
-    DayPlan, Environment, Itinerary, ItineraryActivity, TimeSlot,
+    DayPlan,
+    Environment,
+    Itinerary,
+    ItineraryActivity,
+    TimeSlot,
 )
 from ai_travel_agent.services.conflict_detector import Conflict, ConflictType, Severity
 from ai_travel_agent.services.ollama_client import OllamaClient

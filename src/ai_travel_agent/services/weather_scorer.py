@@ -11,12 +11,12 @@ Score bands → WeatherRating used by the scheduler to decide swaps.
 """
 from dataclasses import dataclass
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 
 from ai_travel_agent.models.itinerary import WeatherForecast
 
 
-class WeatherRating(str, Enum):
+class WeatherRating(StrEnum):
     GOOD = "good"        # score >= 70: outdoor-friendly
     MODERATE = "moderate"  # 40–69: caution
     POOR = "poor"          # < 40: push indoor activities

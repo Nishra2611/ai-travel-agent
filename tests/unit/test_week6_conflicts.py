@@ -9,13 +9,18 @@ import unittest
 from datetime import date, time
 
 from ai_travel_agent.models.itinerary import (
-    Environment, Itinerary, ItineraryActivity, DayPlan, TimeSlot,
+    DayPlan,
+    Environment,
+    Itinerary,
+    ItineraryActivity,
+    TimeSlot,
 )
 from ai_travel_agent.services.conflict_detector import (
-    ConflictDetector, ConflictType, Severity,
+    ConflictDetector,
+    ConflictType,
+    Severity,
 )
 from ai_travel_agent.services.conflict_resolver import ConflictResolver
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
