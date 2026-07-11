@@ -11,6 +11,7 @@ Graceful fallback on connection error — tests never need a running server.
 import json
 import logging
 import os
+from typing import Any
 
 import httpx
 
@@ -21,11 +22,11 @@ DEFAULT_MODEL = "qwen3:8b"
 
 
 class OllamaClient:
-    def __init__(self, base_url: str | None = None, model: str | None = None):
+    def __init__(self, base_url: str | None = None, model: str | None = None) -> None:
         self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", DEFAULT_BASE_URL)
         self.model = model or os.getenv("OLLAMA_MODEL", DEFAULT_MODEL)
 
-    def generate(self, prompt: str, system: str = "", **kwargs) -> str:
+    def generate(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         """Free-text generation. Returns fallback string on connection error."""
         try:
             resp = httpx.post(
@@ -35,15 +36,17 @@ class OllamaClient:
                 timeout=60,
             )
             resp.raise_for_status()
-            return resp.json().get("response", "").strip()
+            result: str = resp.json().get("response", "") or ""
+            return result.strip()
         except Exception as exc:
             logger.warning("Ollama unavailable (%s) — returning fallback", exc)
             return "Unable to generate response at this time."
 
-    def generate_json(self, prompt: str, system: str = "", **kwargs) -> dict:
+    def generate_json(self, prompt: str, system: str = "", **kwargs: Any) -> dict[str, Any]:
         """Generate and parse JSON. Returns {"raw": text} on parse failure."""
         text = self.generate(prompt, system, **kwargs)
         try:
-            return json.loads(text)
+            result: dict[str, Any] = json.loads(text)
+            return result
         except json.JSONDecodeError:
             return {"raw": text}

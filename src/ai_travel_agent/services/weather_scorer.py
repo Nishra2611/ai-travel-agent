@@ -61,6 +61,6 @@ def score_day(forecast: WeatherForecast) -> WeatherScore:
     return WeatherScore(forecast.the_date, round(score, 1), rating, reasons)
 
 
-def score_trip(forecasts: list[WeatherForecast]) -> dict:
+def score_trip(forecasts: list[WeatherForecast]) -> dict[date, "WeatherScore"]:
     """date -> WeatherScore, O(1) lookup for the scheduler."""
     return {f.the_date: score_day(f) for f in forecasts}

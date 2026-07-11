@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, time
 from enum import StrEnum
+from typing import Any
 
 from ai_travel_agent.models.itinerary import DayPlan, Itinerary, ItineraryActivity
 
@@ -33,7 +34,7 @@ class Conflict:
     day_number: int
     message: str
     activity_ids: list[str] = field(default_factory=list)
-    detail: dict = field(default_factory=dict)
+    detail: dict[str, Any] = field(default_factory=dict)
 
 
 class ConflictDetector:
@@ -41,7 +42,7 @@ class ConflictDetector:
 
     def __init__(
         self,
-        travel_time_fn: Callable = lambda a, b: 15,
+        travel_time_fn: Callable[..., int] = lambda a, b: 15,
         max_activities_per_day: int = 5,
         lunch_window: tuple[time, time] = (time(12, 0), time(14, 30)),
         dinner_window: tuple[time, time] = (time(18, 0), time(21, 30)),

@@ -11,6 +11,8 @@ Algorithm:
 5. Report adaptation_rate before/after for the A/B evaluation metric.
 """
 from dataclasses import dataclass, field
+from datetime import date
+from typing import Any
 
 from ai_travel_agent.models.itinerary import (
     DayPlan,
@@ -51,7 +53,7 @@ def _is_matched(act: ItineraryActivity, rating: WeatherRating) -> bool:
     return True  # GOOD/MODERATE: indoor or outdoor both fine
 
 
-def _adaptation_rate(itinerary: Itinerary, scores: dict) -> float:
+def _adaptation_rate(itinerary: Itinerary, scores: dict[date, WeatherScore]) -> float:
     total = matched = 0
     for day in itinerary.days:
         rating = scores[day.date].rating if day.date in scores else WeatherRating.MODERATE
@@ -65,7 +67,7 @@ def _adaptation_rate(itinerary: Itinerary, scores: dict) -> float:
 
 
 class WeatherScheduler:
-    def __init__(self, llm: OllamaClient | None = None, lookahead_days: int = 2):
+    def __init__(self, llm: OllamaClient | None = None, lookahead_days: int = 2) -> None:
         self.llm = llm or OllamaClient()
         self.lookahead_days = lookahead_days
 
@@ -105,7 +107,7 @@ class WeatherScheduler:
 
     # ── internals ──
 
-    def _find_swap_target(self, poor: DayPlan, by_day: dict, scores: dict) -> DayPlan | None:
+    def _find_swap_target(self, poor: DayPlan, by_day: dict[int, DayPlan], scores: dict[date, WeatherScore]) -> DayPlan | None:
         for offset in range(1, self.lookahead_days + 1):
             for num in (poor.day_number + offset, poor.day_number - offset):
                 cand = by_day.get(num)
@@ -117,14 +119,14 @@ class WeatherScheduler:
         return None
 
     @staticmethod
-    def _swap(day_a: DayPlan, day_b: DayPlan, act_a: ItineraryActivity, act_b: ItineraryActivity):
+    def _swap(day_a: DayPlan, day_b: DayPlan, act_a: ItineraryActivity, act_b: ItineraryActivity) -> None:
         """Swap two activities between days; preserve original time slots."""
         act_a.start_time, act_b.start_time = act_b.start_time, act_a.start_time
         act_a.end_time, act_b.end_time = act_b.end_time, act_a.end_time
         idx_a, idx_b = day_a.activities.index(act_a), day_b.activities.index(act_b)
         day_a.activities[idx_a], day_b.activities[idx_b] = act_b, act_a
 
-    def _generate_narratives(self, itinerary: Itinerary, scores: dict) -> dict[int, str]:
+    def _generate_narratives(self, itinerary: Itinerary, scores: dict[date, WeatherScore]) -> dict[int, str]:
         out: dict[int, str] = {}
         for day in itinerary.days:
             ws: WeatherScore | None = scores.get(day.date)
@@ -139,7 +141,7 @@ class WeatherScheduler:
         return out
 
 
-def weather_adaptation_rate_metric(result: WeatherAdaptationResult) -> dict:
+def weather_adaptation_rate_metric(result: WeatherAdaptationResult) -> dict[str, Any]:
     """Ready-to-log metric block for the Week 12 evaluation dashboard."""
     return {
         "adaptation_rate_before": result.adaptation_rate_before,

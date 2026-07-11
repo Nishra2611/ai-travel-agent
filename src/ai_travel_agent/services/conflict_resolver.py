@@ -10,6 +10,7 @@ Strategy per conflict type:
 """
 import logging
 from datetime import datetime, time, timedelta
+from typing import Any
 
 from ai_travel_agent.models.itinerary import (
     DayPlan,
@@ -25,15 +26,15 @@ logger = logging.getLogger(__name__)
 
 
 class ConflictResolver:
-    def __init__(self, llm: OllamaClient | None = None):
+    def __init__(self, llm: OllamaClient | None = None) -> None:
         self.llm = llm or OllamaClient()
-        self.resolution_log: list[dict] = []
+        self.resolution_log: list[dict[str, Any]] = []
 
     def resolve_all(
         self, itinerary: Itinerary, conflicts: list[Conflict],
-    ) -> tuple[Itinerary, list[dict]]:
+    ) -> tuple[Itinerary, list[dict[str, Any]]]:
         """Returns (modified itinerary, list of NEEDS_USER items)."""
-        needs_user: list[dict] = []
+        needs_user: list[dict[str, Any]] = []
         for c in conflicts:
             if c.severity == Severity.NEEDS_USER:
                 needs_user.append(self._build_user_question(itinerary, c))
@@ -46,41 +47,42 @@ class ConflictResolver:
 
     # ── auto-fix handlers ──
 
-    def _fix_time_overlap(self, day: DayPlan, c: Conflict, itin: Itinerary):
+    def _fix_time_overlap(self, day: DayPlan, c: Conflict, itin: Itinerary) -> None:
         by_id = {a.attraction_id: a for a in day.activities}
         a, b = by_id.get(c.activity_ids[0]), by_id.get(c.activity_ids[1])
         if not (a and b) or b.locked:
             return
         dur = self._duration(b)
         b.start_time = a.end_time
-        b.end_time = self._add(b.start_time, dur)
+        b.end_time = self._add(a.end_time or time(0), dur)
         self._log(day.day_number, c.conflict_type, f"Shifted '{b.title}' to {b.start_time}")
 
-    def _fix_impossible_travel(self, day: DayPlan, c: Conflict, itin: Itinerary):
+    def _fix_impossible_travel(self, day: DayPlan, c: Conflict, itin: Itinerary) -> None:
         by_id = {a.attraction_id: a for a in day.activities}
         a, b = by_id.get(c.activity_ids[0]), by_id.get(c.activity_ids[1])
         if not (a and b) or b.locked:
             return
         needed = int(c.detail["needed_min"])
         dur = self._duration(b)
-        b.start_time = self._add(a.end_time, needed)
-        b.end_time = self._add(b.start_time, dur)
+        new_start = self._add(a.end_time or time(0), needed)
+        b.start_time = new_start
+        b.end_time = self._add(new_start, dur)
         self._log(day.day_number, c.conflict_type, f"Pushed '{b.title}' to {b.start_time}")
 
-    def _fix_opening_hours(self, day: DayPlan, c: Conflict, itin: Itinerary):
+    def _fix_opening_hours(self, day: DayPlan, c: Conflict, itin: Itinerary) -> None:
         act = next((a for a in day.activities if a.attraction_id in c.activity_ids), None)
         if not act:
             return
         dur = self._duration(act)
         if act.open_time and act.start_time and act.start_time < act.open_time:
             act.start_time = act.open_time
-            act.end_time = self._add(act.start_time, dur)
+            act.end_time = self._add(act.open_time, dur)
         if act.close_time and act.end_time and act.end_time > act.close_time:
             act.end_time = act.close_time
-            act.start_time = self._sub(act.end_time, dur)
+            act.start_time = self._sub(act.close_time, dur)
         self._log(day.day_number, c.conflict_type, f"Clamped '{act.title}' to opening hours")
 
-    def _fix_meal_gap(self, day: DayPlan, c: Conflict, itin: Itinerary):
+    def _fix_meal_gap(self, day: DayPlan, c: Conflict, itin: Itinerary) -> None:
         is_lunch = "lunch" in c.message
         slot = time(12, 30) if is_lunch else time(19, 0)
         placeholder = ItineraryActivity(
@@ -97,7 +99,7 @@ class ConflictResolver:
         day.activities.append(placeholder)
         self._log(day.day_number, c.conflict_type, f"Inserted {placeholder.title} at {slot}")
 
-    def _fix_budget_overrun_day(self, day: DayPlan, c: Conflict, itin: Itinerary):
+    def _fix_budget_overrun_day(self, day: DayPlan, c: Conflict, itin: Itinerary) -> None:
         candidates = [a for a in day.activities
                       if not a.locked and a.activity_category == "attraction"]
         if not candidates:
@@ -117,7 +119,7 @@ class ConflictResolver:
 
     # ── human-in-the-loop ──
 
-    def _build_user_question(self, itin: Itinerary, c: Conflict) -> dict:
+    def _build_user_question(self, itin: Itinerary, c: Conflict) -> dict[str, Any]:
         prompt = (
             f"A travel itinerary has an unresolved conflict.\n"
             f"Type: {c.conflict_type.value}\nDetails: {c.message}\n"
@@ -143,14 +145,14 @@ class ConflictResolver:
     def _sub(t: time, minutes: int) -> time:
         return (datetime.combine(datetime.today(), t) - timedelta(minutes=minutes)).time()
 
-    def _log(self, day: int, ctype: ConflictType, msg: str):
+    def _log(self, day: int, ctype: ConflictType, msg: str) -> None:
         self.resolution_log.append({"day": day, "type": ctype.value, "resolution": msg})
         logger.info("[day %d] %s: %s", day, ctype.value, msg)
 
 
 # ── LangGraph nodes ──
 
-def human_in_the_loop_node(state: dict) -> dict:
+def human_in_the_loop_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph node: sets awaiting_user_input flag for interrupt."""
     if state.get("needs_user"):
         state["awaiting_user_input"] = True
@@ -160,6 +162,6 @@ def human_in_the_loop_node(state: dict) -> dict:
     return state
 
 
-def route_after_conflict_check(state: dict) -> str:
+def route_after_conflict_check(state: dict[str, Any]) -> str:
     """Conditional edge for the StateGraph."""
     return "ask_user" if state.get("awaiting_user_input") else "continue_planning"
