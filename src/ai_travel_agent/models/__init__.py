@@ -12,8 +12,10 @@ from .hotel import (
 )
 from .itinerary import (
     DayPlan,
+    Environment,
     Itinerary,
     ItineraryActivity,
+    WeatherForecast,
 )
 from .travel_preferences import (
     ActivityType,
@@ -34,4 +36,7 @@ __all__ = [
     "Itinerary",
     "DayPlan",
     "ItineraryActivity",
+    "Environment",
+    "WeatherForecast",
 ]
+
