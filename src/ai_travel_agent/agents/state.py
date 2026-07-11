@@ -1,6 +1,4 @@
 """
-ai_travel_agent/agents/state.py
-
 The TravelState TypedDict is the single object that flows through every
 LangGraph node. Every node reads from it and writes back a partial update.
 LangGraph merges partials automatically — nodes only touch what they own.
@@ -9,12 +7,18 @@ Field naming rules:
   - *_results  : raw list[dict] output from a tool
   - *_error    : str error message if that tool failed, else None
   - status     : controls which node runs next (supervisor reads this)
+
+  itinerary_result  : dict output of ItineraryBuilderTool
+  itinerary_error   : error string if builder failed
+
 """
 
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any
+
+from typing_extensions import TypedDict
 
 
 class TravelState(TypedDict, total=False):
@@ -22,7 +26,7 @@ class TravelState(TypedDict, total=False):
     raw_input: str
     trip_id: str
 
-    # ── parsed preferences (set by preference_parser node) ───────────
+    # ── parsed preferences ────────────────────────────────────────────
     preferences: dict[str, Any]
 
     # ── tool results ──────────────────────────────────────────────────
@@ -32,20 +36,21 @@ class TravelState(TypedDict, total=False):
     restaurant_results: list[dict[str, Any]]
     weather_results: list[dict[str, Any]]
     budget_summary: dict[str, Any]
+    itinerary_result: dict[str, Any] | None  # ← new Week 5
 
-    # ── per-tool error capture ────────────────────────────────────────
+    # ── per-tool errors ───────────────────────────────────────────────
     flight_error: str | None
     hotel_error: str | None
     attraction_error: str | None
     restaurant_error: str | None
     weather_error: str | None
     budget_error: str | None
+    itinerary_error: str | None  # ← new Week 5
 
-    # ── conversation memory (LangGraph appends, never replaces) ───────
+    # ── conversation memory (LangGraph appends) ───────────────────────
     messages: Annotated[list[dict[str, str]], operator.add]
 
-    # ── supervisor control flow ───────────────────────────────────────
-    # "parse" | "search" | "budget" | "assemble" | "done" | "error"
+    # ── control flow: parse | search | budget | build | assemble | done | error
     status: str
 
     # ── final assembled output ────────────────────────────────────────

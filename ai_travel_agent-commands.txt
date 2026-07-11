@@ -1,6 +1,12 @@
 run backend api:
 poetry run uvicorn ai_travel_agent.api.main:app --reload
 
+week 5 check:
+end-to-end smoke test (needs Ollama running)-
+poetry run python scripts/demo_agent_w5.py
+run backend and then
+curl -X POST "http://localhost:8000/api/plan" -H "Content-Type: application/json" -d "{\"message\":\"Paris 5 days culture and food under $3000\"}"
+
 run frontend:
 cd frontend
 npm run dev
