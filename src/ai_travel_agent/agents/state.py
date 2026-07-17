@@ -36,6 +36,11 @@ class TravelState(TypedDict, total=False):
     restaurant_results: list[dict[str, Any]]
     weather_results: list[dict[str, Any]]
     budget_summary: dict[str, Any]
+    # ── Week 8 budget optimization ────────────────────────────────────
+    budget_allocation: dict[str, Any] | None
+    budget_tradeoffs: dict[str, Any] | None
+    budget_adherence: dict[str, Any] | None
+    # -------------week 8--------------------------------------------------
     itinerary_result: dict[str, Any] | None  # ← new Week 5
 
     # ── per-tool errors ───────────────────────────────────────────────

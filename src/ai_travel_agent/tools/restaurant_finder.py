@@ -93,6 +93,7 @@ class RestaurantFinderTool(BaseTool):
             query,
             max_results=30,
         )
+
         print("RAW PLACES:", results)
 
         target_price = BUDGET_TO_PRICE_LEVEL.get(budget) if budget else None

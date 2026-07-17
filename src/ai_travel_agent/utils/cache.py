@@ -52,7 +52,11 @@ class CacheManager:
         return json.loads(raw) if raw else None
 
     def set(
-        self, namespace: str, params: dict[str, Any], value: Any, ttl: int = 3600
+        self,
+        namespace: str,
+        params: dict[str, Any],
+        value: Any,
+        ttl: int = 3600,
     ) -> None:
         key = self._make_key(namespace, params)
         self.client.setex(key, ttl, json.dumps(value, default=str))
