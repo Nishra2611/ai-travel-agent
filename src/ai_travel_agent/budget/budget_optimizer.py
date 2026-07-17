@@ -363,7 +363,7 @@ class _BudgetOptimizer:
 
     @staticmethod
     def _enforce_floors(
-        split: dict[BudgetCategory, float]
+        split: dict[BudgetCategory, float],
     ) -> dict[BudgetCategory, float]:
         """Water-filling pass: pull categories up to their floor by
         proportionally shaving categories that are above theirs. Verified

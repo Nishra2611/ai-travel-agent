@@ -15,6 +15,7 @@ class TimeSlot(StrEnum):
 
 class Environment(StrEnum):
     """Indoor/outdoor classification for weather-aware scheduling (Week 7)."""
+
     INDOOR = "indoor"
     OUTDOOR = "outdoor"
     MIXED = "mixed"
@@ -68,6 +69,7 @@ class DayPlan(BaseModel):
 
 class WeatherForecast(BaseModel):
     """Structured forecast consumed by weather_scorer / weather_scheduler."""
+
     the_date: date
     temp_c: float
     rain_probability: float = Field(default=0.0, ge=0, le=1)
