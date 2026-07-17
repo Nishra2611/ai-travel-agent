@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class BudgetCategory(str, Enum):
+class BudgetCategory(StrEnum):
     FLIGHTS = "flights"
     ACCOMMODATION = "accommodation"
     FOOD = "food"
@@ -14,7 +14,7 @@ class BudgetCategory(str, Enum):
     MISC = "misc"
 
 
-class BudgetProfile(str, Enum):
+class BudgetProfile(StrEnum):
     BACKPACKER = "backpacker"
     MID_RANGE = "mid_range"
     LUXURY = "luxury"
