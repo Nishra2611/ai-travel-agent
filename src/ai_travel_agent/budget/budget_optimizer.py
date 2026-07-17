@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 
 class BudgetCategory(StrEnum):
@@ -62,7 +63,8 @@ MIN_CATEGORY_FLOOR_PCT: dict[BudgetCategory, float] = {
 
 # Search-tool hints per profile — lets allocate_budget bias FlightSearchTool
 # / HotelSearchTool filters, not just label money.
-SCENARIO_SEARCH_HINTS: dict[BudgetProfile, dict] = {
+SCENARIO_SEARCH_HINTS: dict[BudgetProfile, dict[str, int | float]] = {
+    # SCENARIO_SEARCH_HINTS: dict[BudgetProfile, dict] = {
     BudgetProfile.BACKPACKER: {
         "max_hotel_stars": 3,
         "min_hotel_rating": 3.5,
@@ -158,7 +160,8 @@ class BudgetAllocation:
     total_budget: float
     profile: BudgetProfile
     allocations: list[CategoryAllocation]
-    search_hints: dict
+    # search_hints: dict
+    search_hints: dict[str, int | float]
 
     def get(self, category: BudgetCategory) -> CategoryAllocation:
         for a in self.allocations:
@@ -166,7 +169,7 @@ class BudgetAllocation:
                 return a
         raise KeyError(category)
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Plain-dict shape for dropping straight into TravelState."""
         return {
             "total_budget": self.total_budget,
@@ -197,7 +200,7 @@ class TradeoffReport:
     surplus_or_deficit: float
     suggestions: list[TradeoffSuggestion]
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "status": self.status,
             "surplus_or_deficit": round(self.surplus_or_deficit, 2),
@@ -222,7 +225,7 @@ class AdherenceScore:
     variance_pct: float
     verdict: str
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "overall_score": self.overall_score,
             "category_scores": {k.value: v for k, v in self.category_scores.items()},
@@ -414,8 +417,14 @@ class _BudgetOptimizer:
             return "significant_deviation"
         return "over_budget" if variance_pct > 0 else "under_budget"
 
+    # def _suggest_upgrades(
+    #     self, allocation, actual_spend, surplus
+    # ) -> list[TradeoffSuggestion]:
     def _suggest_upgrades(
-        self, allocation, actual_spend, surplus
+        self,
+        allocation: BudgetAllocation,
+        actual_spend: dict[BudgetCategory, float],
+        surplus: float,
     ) -> list[TradeoffSuggestion]:
         suggestions, remaining = [], surplus
         for category in _UPGRADE_PRIORITY:
@@ -431,8 +440,14 @@ class _BudgetOptimizer:
             remaining -= step
         return suggestions
 
+    # def _suggest_cuts(
+    #     self, allocation, actual_spend, deficit
+    # ) -> list[TradeoffSuggestion]:
     def _suggest_cuts(
-        self, allocation, actual_spend, deficit
+        self,
+        allocation: BudgetAllocation,
+        actual_spend: dict[BudgetCategory, float],
+        deficit: float,
     ) -> list[TradeoffSuggestion]:
         suggestions, remaining = [], deficit
         for category in _CUT_PRIORITY:

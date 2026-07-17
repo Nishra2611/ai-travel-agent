@@ -103,8 +103,9 @@ def parse_preferences(state: TravelState) -> dict[str, Any]:
 
 
 # week 8
-def allocate_budget(state: TravelState) -> dict:
-    prefs = state.get("preferences", {})
+def allocate_budget(state: TravelState) -> dict[str, Any]:
+    prefs: dict[str, Any] = state.get("preferences", {})
+    # prefs = state.get("preferences", {})
 
     total_budget = prefs.get("total_budget") or prefs.get("budget_usd")
 
@@ -401,7 +402,7 @@ def handle_error(state: TravelState) -> dict[str, Any]:
 
 
 # week 8
-def evaluate_budget(state: TravelState) -> dict:
+def evaluate_budget(state: TravelState) -> dict[str, Any]:
     allocation_dict = state.get("budget_allocation")
 
     if not allocation_dict:
