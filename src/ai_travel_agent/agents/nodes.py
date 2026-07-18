@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import traceback
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from ai_travel_agent.agents.state import TravelState
 
@@ -495,11 +495,40 @@ def _extract_actual_spend(
 
 # week 9
 def build_geo_clusters(state: TravelState) -> dict[str, Any]:
+    # attractions = list(state.get("attraction_results") or [])
+    # restaurants = list(state.get("restaurant_results") or [])
+    # hotels = list(state.get("hotel_results") or [])
+
+    # attractions = cast(
+    #     list[dict[str, Any]],
+    #     state.get("attraction_results") or [],
+    # )
+
+    # restaurants = cast(
+    #     list[dict[str, Any]],
+    #     state.get("restaurant_results") or [],
+    # )
+
+    # hotels = cast(
+    #     list[dict[str, Any]],
+    #     state.get("hotel_results") or [],
+    # )
+
+    # attractions = state.get("attraction_results") or state.get("attractions") or []
+
+    # restaurants = state.get("restaurant_results") or state.get("restaurants") or []
+
+    # hotels = state.get("hotel_results") or state.get("hotels") or []
+
+    attractions_dbg = state.get("attraction_results") or []
+    restaurants_dbg = state.get("restaurant_results") or []
+    hotels_dbg = state.get("hotel_results") or []
+
     logger.warning(
-        "geo debug attractions=%s restaurants=%s hotels=%s",
-        len(state.get("attractions") or []),
-        len(state.get("restaurants") or []),
-        len(state.get("hotels") or []),
+        "attraction_results=%s restaurant_results=%s hotel_results=%s",
+        len(list(attractions_dbg)),
+        len(list(restaurants_dbg)),
+        len(list(hotels_dbg)),
     )
     """
     Reads attractions/restaurants/hotels out of state, converts them to
@@ -545,10 +574,10 @@ def build_geo_clusters(state: TravelState) -> dict[str, Any]:
 def _collect_points(state: TravelState) -> list[GeoPoint]:
     points: list[GeoPoint] = []
 
-    # attractions = state.get("attraction_results") or []
-    # attractions: list[dict[str, Any]] = state.get("attraction_results") or []
-    attractions = state.get("attraction_results") or state.get("attractions") or []
-
+    attractions = cast(
+        list[dict[str, Any]],
+        state.get("attraction_results") or state.get("attractions") or [],
+    )
     for attraction in attractions:
 
         # for attraction in state.get("attractions") or []:
@@ -565,10 +594,10 @@ def _collect_points(state: TravelState) -> list[GeoPoint]:
                 )
             )
 
-    # restaurants = state.get("restaurant_results") or []
-    # restaurants: list[dict[str, Any]] = state.get("restaurant_results") or []
-
-    restaurants = state.get("restaurant_results") or state.get("restaurants") or []
+    restaurants = cast(
+        list[dict[str, Any]],
+        state.get("restaurant_results") or state.get("restaurants") or [],
+    )
 
     for restaurant in restaurants:
 
@@ -586,11 +615,10 @@ def _collect_points(state: TravelState) -> list[GeoPoint]:
                 )
             )
 
-    # hotels = state.get("hotels") or []
-    # hotels = state.get("hotel_results") or []
-    # hotels: list[dict[str, Any]] = state.get("hotel_results") or []
-
-    hotels = state.get("hotel_results") or state.get("hotels") or []
+    hotels = cast(
+        list[dict[str, Any]],
+        state.get("hotel_results") or state.get("hotels") or [],
+    )
 
     if (
         hotels

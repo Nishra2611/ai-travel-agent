@@ -25,9 +25,10 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
+from numpy.typing import NDArray
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.metrics import silhouette_score
 
@@ -168,17 +169,31 @@ class _GeoClusterBuilder:
         )
 
     @staticmethod
+    # def _run_dbscan(
+    #     coords_rad: np.ndarray, eps_meters: float, min_samples: int
+    # ) -> np.ndarray:
     def _run_dbscan(
-        coords_rad: np.ndarray, eps_meters: float, min_samples: int
-    ) -> np.ndarray:
+        coords_rad: NDArray[np.float64], eps_meters: float, min_samples: int
+    ) -> NDArray[np.int_]:
         eps_rad = eps_meters / EARTH_RADIUS_METERS
-        return DBSCAN(
-            eps=eps_rad, min_samples=min_samples, metric="haversine"
-        ).fit_predict(coords_rad)
+        # return DBSCAN(
+        #     eps=eps_rad, min_samples=min_samples, metric="haversine"
+        # ).fit_predict(coords_rad)
+        return cast(
+            NDArray[np.int_],
+            DBSCAN(
+                eps=eps_rad,
+                min_samples=min_samples,
+                metric="haversine",
+            ).fit_predict(coords_rad),
+        )
 
     @staticmethod
+    # def _build_clusters(
+    #     points: list[GeoPoint], labels: np.ndarray
+    # ) -> tuple[list[GeoCluster], list[GeoPoint]]:
     def _build_clusters(
-        points: list[GeoPoint], labels: np.ndarray
+        points: list[GeoPoint], labels: NDArray[np.int_]
     ) -> tuple[list[GeoCluster], list[GeoPoint]]:
         clusters, noise = [], []
         color_cycle = itertools.cycle(CLUSTER_COLORS)
@@ -207,7 +222,11 @@ class _GeoClusterBuilder:
         return clusters, noise
 
     @staticmethod
-    def _safe_silhouette(coords_rad: np.ndarray, labels: np.ndarray) -> float | None:
+    # def _safe_silhouette(coords_rad: np.ndarray, labels: np.ndarray) -> float | None:
+    def _safe_silhouette(
+        coords_rad: NDArray[np.float64],
+        labels: NDArray[np.int_],
+    ) -> float | None:
         mask = labels != -1
         if len(set(labels[mask])) < 2 or mask.sum() < 3:
             return None
