@@ -627,10 +627,7 @@ def _collect_points(state: TravelState) -> list[GeoPoint]:
                 )
             )
 
-    hotels = cast(
-        list[dict[str, Any]],
-        state.get("hotel_results") or state.get("hotels") or [],
-    )
+    hotels = state.get("hotel_results") or state.get("hotels") or []
 
     if (
         hotels
@@ -653,7 +650,7 @@ def _collect_points(state: TravelState) -> list[GeoPoint]:
 
 
 # week 10
-def optimize_routes(state: TravelState) -> dict:
+def optimize_routes(state: TravelState) -> dict[str, Any]:
     """
     For each day in state["itinerary"]["days"]: builds a GeoPoint list from
     the day's activities + the trip hotel, fetches a per-day distance
@@ -676,7 +673,7 @@ def optimize_routes(state: TravelState) -> dict:
         )
         return {"route_optimization": None}
 
-    per_day_results: dict[str, dict] = {}
+    per_day_results: dict[str, dict[str, Any]] = {}
     for day_index, day in enumerate(itinerary["days"]):
         day_key = f"day_{day_index + 1}"
         activity_points, activities_by_id = _extract_activity_points(day)
@@ -730,7 +727,9 @@ def _extract_hotel_point(state: TravelState) -> GeoPoint | None:
     )
 
 
-def _extract_activity_points(day: dict) -> tuple[list[GeoPoint], dict[str, dict]]:
+def _extract_activity_points(
+    day: dict[str, Any]
+) -> tuple[list[GeoPoint], dict[str, dict[str, Any]]]:
     """
     Returns (geocoded points for this day, id -> original activity dict)
     so the optimized order can be mapped straight back onto the itinerary's
@@ -738,7 +737,7 @@ def _extract_activity_points(day: dict) -> tuple[list[GeoPoint], dict[str, dict]
     (cost, category, time slot, etc).
     """
     points: list[GeoPoint] = []
-    by_id: dict[str, dict] = {}
+    by_id: dict[str, dict[str, Any]] = {}
     for i, activity in enumerate(day.get("activities", [])):
         if activity.get("latitude") is None or activity.get("longitude") is None:
             continue

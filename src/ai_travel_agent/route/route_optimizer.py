@@ -47,6 +47,7 @@ import itertools
 import random
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from ai_travel_agent.geo.distance_matrix_client import DistanceMatrix, GeoPoint
 from ai_travel_agent.utils.logger import get_logger
@@ -99,7 +100,7 @@ class OptimizedRoute:
     improvement_pct: float  # (naive - optimized) / naive * 100
     baseline_method: str  # "exact" | "sampled"
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "ordered_activity_ids": [p.id for p in self.ordered_activities],
             "optimized_seconds": round(self.optimized_seconds, 1),
