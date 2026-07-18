@@ -36,10 +36,20 @@ from ai_travel_agent.budget.budget_optimizer import (
     _BudgetOptimizer,
 )
 
+# week 10
+from ai_travel_agent.geo.distance_matrix_client import (
+    GeoPoint,
+    get_distance_matrix_safe,
+)
+
 # till here week 8
 # week 9
-from ai_travel_agent.geo.distance_matrix_client import GeoPoint
+# from ai_travel_agent.geo.distance_matrix_client import GeoPoint
 from ai_travel_agent.geo.geo_clustering import _GeoClusterBuilder
+from ai_travel_agent.route.route_optimizer import (
+    _RouteOptimizer,
+    build_distance_lookup,
+)
 
 # till here week 9
 from ai_travel_agent.tools.attraction_finder import AttractionFinderTool
@@ -52,6 +62,7 @@ from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.logger import get_logger
 
 logger = get_logger(__name__)
+MIN_ACTIVITIES_TO_OPTIMIZE = 2
 
 # ── singletons ────────────────────────────────────────────────────────────────
 _flight_tool = FlightSearchTool()
@@ -63,6 +74,7 @@ _budget_tool = BudgetTrackerTool()
 _itinerary_tool = ItineraryBuilderTool()  # ← new Week 5
 _optimizer = _BudgetOptimizer()  # added in week 8
 _cluster_builder = _GeoClusterBuilder()  # added in week 9
+_route_optimizer = _RouteOptimizer()  # week 10
 
 
 def _safe_run(tool_name: str, fn: Any, **kwargs: Any) -> tuple[Any, str | None]:
@@ -638,3 +650,108 @@ def _collect_points(state: TravelState) -> list[GeoPoint]:
 
 
 # week 9
+
+
+# week 10
+def optimize_routes(state: TravelState) -> dict:
+    """
+    For each day in state["itinerary"]["days"]: builds a GeoPoint list from
+    the day's activities + the trip hotel, fetches a per-day distance
+    matrix, runs _RouteOptimizer, and reorders that day's activities list
+    in place to the optimized order. Writes state["route_optimization"]
+    with per-day efficiency_score/improvement_pct for assemble_output to
+    surface.
+
+    Never raises: a day that can't be optimized (missing coordinates, <2
+    activities, distance matrix failure) is left in its original order and
+    recorded with efficiency_score=None rather than blocking the other
+    days or the rest of the graph.
+    """
+    itinerary = state.get("itinerary_result") or state.get("itinerary")
+    hotel_point = _extract_hotel_point(state)
+
+    if not itinerary or not itinerary.get("days") or hotel_point is None:
+        logger.warning(
+            "no itinerary or hotel coordinates available, skipping route optimization"
+        )
+        return {"route_optimization": None}
+
+    per_day_results: dict[str, dict] = {}
+    for day_index, day in enumerate(itinerary["days"]):
+        day_key = f"day_{day_index + 1}"
+        activity_points, activities_by_id = _extract_activity_points(day)
+
+        if len(activity_points) < MIN_ACTIVITIES_TO_OPTIMIZE:
+            per_day_results[day_key] = {
+                "skipped": True,
+                "reason": "fewer than 2 geocoded activities",
+            }
+            continue
+
+        try:
+            matrix = get_distance_matrix_safe(
+                [hotel_point, *activity_points], profile="walking"
+            )
+            distance_lookup = build_distance_lookup(matrix)
+            result = _route_optimizer.optimize_day(
+                hotel_point, activity_points, distance_lookup, seed=day_index
+            )
+
+            day["activities"] = [
+                activities_by_id[p.id] for p in result.ordered_activities
+            ]
+            per_day_results[day_key] = result.as_dict()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(f"route optimization failed for day {day_key}: {exc}")
+            per_day_results[day_key] = {"skipped": True, "reason": str(exc)}
+
+    logger.info("route optimization complete", extra={"num_days": len(per_day_results)})
+    return {
+        "itinerary": itinerary,
+        "itinerary_result": itinerary,
+        "route_optimization": per_day_results,
+    }
+
+
+# def _extract_hotel_point(state: TravelState) -> GeoPoint | None:
+#     hotels = state.get("hotels") or []
+def _extract_hotel_point(state: TravelState) -> GeoPoint | None:
+    hotels = state.get("hotel_results") or state.get("hotels") or []
+    if not hotels:
+        return None
+    hotel = hotels[0]
+    if hotel.get("latitude") is None or hotel.get("longitude") is None:
+        return None
+    return GeoPoint(
+        id=hotel.get("id", "hotel"),
+        name=hotel.get("name", "hotel"),
+        latitude=hotel["latitude"],
+        longitude=hotel["longitude"],
+    )
+
+
+def _extract_activity_points(day: dict) -> tuple[list[GeoPoint], dict[str, dict]]:
+    """
+    Returns (geocoded points for this day, id -> original activity dict)
+    so the optimized order can be mapped straight back onto the itinerary's
+    activity dicts without losing any fields the itinerary builder set
+    (cost, category, time slot, etc).
+    """
+    points: list[GeoPoint] = []
+    by_id: dict[str, dict] = {}
+    for i, activity in enumerate(day.get("activities", [])):
+        if activity.get("latitude") is None or activity.get("longitude") is None:
+            continue
+        activity_id = activity.get("id") or activity.get("name") or f"activity_{i}"
+        point = GeoPoint(
+            id=activity_id,
+            name=activity.get("name", activity_id),
+            latitude=activity["latitude"],
+            longitude=activity["longitude"],
+        )
+        points.append(point)
+        by_id[activity_id] = activity
+    return points, by_id
+
+
+# week 10

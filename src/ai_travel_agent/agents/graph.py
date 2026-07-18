@@ -63,6 +63,7 @@ from ai_travel_agent.agents.nodes import (
     find_attractions,
     find_restaurants,
     handle_error,
+    optimize_routes,  # NEW Week 10 (reorders each day's activities)
     parse_preferences,
     search_flights,
     search_hotels,
@@ -91,14 +92,19 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
     builder.add_node("parse_preferences", parse_preferences)
     builder.add_node("allocate_budget", allocate_budget)  # week 8
     builder.add_node("search_flights", search_flights)
+    # builder.add_node("search_hotels", search_hotels)
+    print("search_hotels function =", search_hotels)
     builder.add_node("search_hotels", search_hotels)
     builder.add_node("find_attractions", find_attractions)
     builder.add_node("find_restaurants", find_restaurants)
     builder.add_node("check_weather", check_weather)
     builder.add_node("track_budget", track_budget)
     builder.add_node("build_geo_clusters", build_geo_clusters)
-    builder.add_node("build_itinerary", build_itinerary)  # ← new
+    # builder.add_node("build_itinerary", build_itinerary)  # ← new
+    print("build_itinerary function =", build_itinerary)
+    builder.add_node("build_itinerary", build_itinerary)
     builder.add_node("evaluate_budget", evaluate_budget)  # week 8
+    builder.add_node("optimize_routes", optimize_routes)  # week 10
     builder.add_node("assemble_output", assemble_output)
     builder.add_node("handle_error", handle_error)
 
@@ -134,7 +140,9 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
     # builder.add_edge("track_budget", "build_itinerary")
     builder.add_edge("track_budget", "build_geo_clusters")  # week 9
     builder.add_edge("build_geo_clusters", "build_itinerary")  # week 9
-    builder.add_edge("build_itinerary", "evaluate_budget")
+    # builder.add_edge("build_itinerary", "evaluate_budget")
+    builder.add_edge("build_itinerary", "optimize_routes")
+    builder.add_edge("optimize_routes", "evaluate_budget")
     builder.add_edge("evaluate_budget", "assemble_output")
 
     # builder.add_edge("track_budget", "build_itinerary")  # ← new
