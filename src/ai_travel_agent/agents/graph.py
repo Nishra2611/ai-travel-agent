@@ -54,9 +54,11 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
 from ai_travel_agent.agents.nodes import (
+    allocate_budget,
     assemble_output,
     build_itinerary,
     check_weather,
+    evaluate_budget,
     find_attractions,
     find_restaurants,
     handle_error,
@@ -86,6 +88,7 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
 
     # ── nodes ──────────────────────────────────────────────────────────
     builder.add_node("parse_preferences", parse_preferences)
+    builder.add_node("allocate_budget", allocate_budget)  # week 8
     builder.add_node("search_flights", search_flights)
     builder.add_node("search_hotels", search_hotels)
     builder.add_node("find_attractions", find_attractions)
@@ -93,6 +96,7 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
     builder.add_node("check_weather", check_weather)
     builder.add_node("track_budget", track_budget)
     builder.add_node("build_itinerary", build_itinerary)  # ← new
+    builder.add_node("evaluate_budget", evaluate_budget)  # week 8
     builder.add_node("assemble_output", assemble_output)
     builder.add_node("handle_error", handle_error)
 
@@ -111,7 +115,8 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
     builder.add_conditional_edges(
         "parse_preferences",
         supervisor_router,
-        {"search_flights": "search_flights", "handle_error": "handle_error"},
+        # {"search_flights": "search_flights", "handle_error": "handle_error"},
+        {"search_flights": "allocate_budget", "handle_error": "handle_error"},  # week 8
     )
 
     # ── sequential search chain ────────────────────────────────────────
@@ -119,11 +124,17 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
     builder.add_edge("search_hotels", "find_attractions")
     builder.add_edge("find_attractions", "find_restaurants")
     builder.add_edge("find_restaurants", "check_weather")
+    builder.add_edge("allocate_budget", "search_flights")  # week 8
 
     # ── search → budget → build → assemble ────────────────────────────
     builder.add_edge("check_weather", "track_budget")
-    builder.add_edge("track_budget", "build_itinerary")  # ← new
-    builder.add_edge("build_itinerary", "assemble_output")  # ← new
+    # week 8
+    builder.add_edge("track_budget", "build_itinerary")
+    builder.add_edge("build_itinerary", "evaluate_budget")
+    builder.add_edge("evaluate_budget", "assemble_output")
+
+    # builder.add_edge("track_budget", "build_itinerary")  # ← new
+    # builder.add_edge("build_itinerary", "assemble_output")  # ← new
 
     # ── terminal ───────────────────────────────────────────────────────
     builder.add_edge("assemble_output", END)

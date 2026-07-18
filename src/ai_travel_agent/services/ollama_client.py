@@ -8,6 +8,7 @@ and testable (see FakeLLM stubs in the test files).
 Reads OLLAMA_BASE_URL / OLLAMA_MODEL from env (.env.example already has them).
 Graceful fallback on connection error — tests never need a running server.
 """
+
 import json
 import logging
 import os
@@ -31,8 +32,12 @@ class OllamaClient:
         try:
             resp = httpx.post(
                 f"{self.base_url}/api/generate",
-                json={"model": self.model, "prompt": prompt,
-                      "system": system, "stream": False},
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "system": system,
+                    "stream": False,
+                },
                 timeout=60,
             )
             resp.raise_for_status()
@@ -42,7 +47,9 @@ class OllamaClient:
             logger.warning("Ollama unavailable (%s) — returning fallback", exc)
             return "Unable to generate response at this time."
 
-    def generate_json(self, prompt: str, system: str = "", **kwargs: Any) -> dict[str, Any]:
+    def generate_json(
+        self, prompt: str, system: str = "", **kwargs: Any
+    ) -> dict[str, Any]:
         """Generate and parse JSON. Returns {"raw": text} on parse failure."""
         text = self.generate(prompt, system, **kwargs)
         try:

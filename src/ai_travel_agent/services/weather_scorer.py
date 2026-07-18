@@ -9,6 +9,7 @@ comfort_score in [0, 100]:
 
 Score bands → WeatherRating used by the scheduler to decide swaps.
 """
+
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
@@ -17,9 +18,9 @@ from ai_travel_agent.models.itinerary import WeatherForecast
 
 
 class WeatherRating(StrEnum):
-    GOOD = "good"        # score >= 70: outdoor-friendly
+    GOOD = "good"  # score >= 70: outdoor-friendly
     MODERATE = "moderate"  # 40–69: caution
-    POOR = "poor"          # < 40: push indoor activities
+    POOR = "poor"  # < 40: push indoor activities
 
 
 IDEAL_LOW, IDEAL_HIGH = 18.0, 26.0
@@ -57,7 +58,11 @@ def score_day(forecast: WeatherForecast) -> WeatherScore:
     score -= t_pen
 
     score = max(0.0, min(100.0, score))
-    rating = WeatherRating.GOOD if score >= 70 else (WeatherRating.MODERATE if score >= 40 else WeatherRating.POOR)
+    rating = (
+        WeatherRating.GOOD
+        if score >= 70
+        else (WeatherRating.MODERATE if score >= 40 else WeatherRating.POOR)
+    )
     return WeatherScore(forecast.the_date, round(score, 1), rating, reasons)
 
 

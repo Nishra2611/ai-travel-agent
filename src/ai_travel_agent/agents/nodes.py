@@ -28,6 +28,15 @@ import uuid
 from typing import Any
 
 from ai_travel_agent.agents.state import TravelState
+
+# week 8 added
+from ai_travel_agent.budget.budget_optimizer import (
+    BudgetCategory,
+    BudgetProfile,
+    _BudgetOptimizer,
+)
+
+# till here week 8
 from ai_travel_agent.tools.attraction_finder import AttractionFinderTool
 from ai_travel_agent.tools.budget_tracker import BudgetTrackerTool
 from ai_travel_agent.tools.flight_search import FlightSearchTool
@@ -47,6 +56,7 @@ _restaurant_tool = RestaurantFinderTool()
 _weather_tool = WeatherCheckerTool()
 _budget_tool = BudgetTrackerTool()
 _itinerary_tool = ItineraryBuilderTool()  # ← new Week 5
+_optimizer = _BudgetOptimizer()  # added in week 8
 
 
 def _safe_run(tool_name: str, fn: Any, **kwargs: Any) -> tuple[Any, str | None]:
@@ -90,6 +100,45 @@ def parse_preferences(state: TravelState) -> dict[str, Any]:
             }
         ],
     }
+
+
+# week 8
+def allocate_budget(state: TravelState) -> dict[str, Any]:
+    prefs: dict[str, Any] = state.get("preferences", {})
+    # prefs = state.get("preferences", {})
+
+    total_budget = prefs.get("total_budget") or prefs.get("budget_usd")
+
+    profile = prefs.get(
+        "budget_profile",
+        BudgetProfile.MID_RANGE.value,
+    )
+
+    preference_text = prefs.get("raw_preference_text") or state.get("raw_input")
+
+    if not total_budget:
+        logger.warning("No budget supplied")
+        return {"budget_allocation": None}
+
+    try:
+        allocation = _optimizer.allocate(
+            total_budget=float(total_budget),
+            profile=profile,
+            preference_text=preference_text,
+        )
+
+        return {"budget_allocation": allocation.as_dict()}
+
+    except Exception as exc:
+        logger.error("Budget allocation failed: %s", exc)
+
+        return {
+            "budget_allocation": None,
+            "budget_error": str(exc),
+        }
+
+
+# week 8
 
 
 def search_flights(state: TravelState) -> dict[str, Any]:
@@ -300,6 +349,11 @@ def assemble_output(state: TravelState) -> dict[str, Any]:
         "restaurants": state.get("restaurant_results") or [],
         "weather": state.get("weather_results") or [],
         "budget": state.get("budget_summary") or {},
+        # week 8
+        "budget_allocation": state.get("budget_allocation"),
+        "budget_tradeoffs": state.get("budget_tradeoffs"),
+        "budget_adherence": state.get("budget_adherence"),
+        # week 8
         "errors": errors,
         "tools_succeeded": 7 - len(errors),  # 7 tools in Week 5
         "tools_failed": len(errors),
@@ -345,3 +399,89 @@ def handle_error(state: TravelState) -> dict[str, Any]:
             {"role": "assistant", "content": f"Sorry, something went wrong: {msg}"}
         ],
     }
+
+
+# week 8
+def evaluate_budget(state: TravelState) -> dict[str, Any]:
+    allocation_dict = state.get("budget_allocation")
+
+    if not allocation_dict:
+        return {
+            "budget_tradeoffs": None,
+            "budget_adherence": None,
+        }
+
+    actual_spend = _extract_actual_spend(state)
+
+    allocation = _optimizer.allocate(
+        total_budget=allocation_dict["total_budget"],
+        profile=allocation_dict["profile"],
+    )
+
+    tradeoffs = _optimizer.suggest_tradeoffs(
+        allocation,
+        actual_spend,
+    )
+
+    adherence = _optimizer.adherence_score(
+        allocation,
+        actual_spend,
+    )
+
+    return {
+        "budget_tradeoffs": tradeoffs.as_dict(),
+        "budget_adherence": adherence.as_dict(),
+    }
+
+
+def _extract_actual_spend(
+    state: TravelState,
+) -> dict[BudgetCategory, float]:
+
+    flights = state.get("flight_results") or []
+    hotels = state.get("hotel_results") or []
+    itinerary = state.get("itinerary_result") or {}
+
+    flights_cost = 0.0
+    if flights:
+        flights_cost = flights[0].get(
+            "total_price_usd",
+            0.0,
+        )
+
+    hotel_cost = 0.0
+    if hotels:
+        hotel_cost = hotels[0].get(
+            "total_price_usd",
+            0.0,
+        )
+
+    activities_cost = 0.0
+    food_cost = 0.0
+
+    for day in itinerary.get("days", []):
+        for activity in day.get("activities", []):
+
+            if activity.get("category") == "activity":
+                activities_cost += activity.get(
+                    "cost",
+                    0.0,
+                )
+
+            if activity.get("category") == "restaurant":
+                food_cost += activity.get(
+                    "cost",
+                    0.0,
+                )
+
+    return {
+        BudgetCategory.FLIGHTS: flights_cost,
+        BudgetCategory.ACCOMMODATION: hotel_cost,
+        BudgetCategory.FOOD: food_cost,
+        BudgetCategory.ACTIVITIES: activities_cost,
+        BudgetCategory.TRANSPORT: 0.0,
+        BudgetCategory.MISC: 0.0,
+    }
+
+
+# week 8
