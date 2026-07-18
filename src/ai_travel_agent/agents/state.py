@@ -41,6 +41,9 @@ class TravelState(TypedDict, total=False):
     budget_tradeoffs: dict[str, Any] | None
     budget_adherence: dict[str, Any] | None
     # -------------week 8--------------------------------------------------
+    # ── Week 9 geo clustering ──────────────────────────────────────────
+    geo_clusters: dict[str, Any] | None
+    # ── Week 9 itinerary builder ───────────────────────────────────────
     itinerary_result: dict[str, Any] | None  # ← new Week 5
 
     # ── per-tool errors ───────────────────────────────────────────────

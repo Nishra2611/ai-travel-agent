@@ -56,6 +56,7 @@ from langgraph.graph import END, START, StateGraph
 from ai_travel_agent.agents.nodes import (
     allocate_budget,
     assemble_output,
+    build_geo_clusters,
     build_itinerary,
     check_weather,
     evaluate_budget,
@@ -95,6 +96,7 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
     builder.add_node("find_restaurants", find_restaurants)
     builder.add_node("check_weather", check_weather)
     builder.add_node("track_budget", track_budget)
+    builder.add_node("build_geo_clusters", build_geo_clusters)
     builder.add_node("build_itinerary", build_itinerary)  # ← new
     builder.add_node("evaluate_budget", evaluate_budget)  # week 8
     builder.add_node("assemble_output", assemble_output)
@@ -128,8 +130,10 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
 
     # ── search → budget → build → assemble ────────────────────────────
     builder.add_edge("check_weather", "track_budget")
-    # week 8
-    builder.add_edge("track_budget", "build_itinerary")
+    # week 8 ,9
+    # builder.add_edge("track_budget", "build_itinerary")
+    builder.add_edge("track_budget", "build_geo_clusters")  # week 9
+    builder.add_edge("build_geo_clusters", "build_itinerary")  # week 9
     builder.add_edge("build_itinerary", "evaluate_budget")
     builder.add_edge("evaluate_budget", "assemble_output")
 

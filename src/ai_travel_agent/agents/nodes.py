@@ -37,6 +37,11 @@ from ai_travel_agent.budget.budget_optimizer import (
 )
 
 # till here week 8
+# week 9
+from ai_travel_agent.geo.distance_matrix_client import GeoPoint
+from ai_travel_agent.geo.geo_clustering import _GeoClusterBuilder
+
+# till here week 9
 from ai_travel_agent.tools.attraction_finder import AttractionFinderTool
 from ai_travel_agent.tools.budget_tracker import BudgetTrackerTool
 from ai_travel_agent.tools.flight_search import FlightSearchTool
@@ -57,6 +62,7 @@ _weather_tool = WeatherCheckerTool()
 _budget_tool = BudgetTrackerTool()
 _itinerary_tool = ItineraryBuilderTool()  # ← new Week 5
 _optimizer = _BudgetOptimizer()  # added in week 8
+_cluster_builder = _GeoClusterBuilder()  # added in week 9
 
 
 def _safe_run(tool_name: str, fn: Any, **kwargs: Any) -> tuple[Any, str | None]:
@@ -485,3 +491,122 @@ def _extract_actual_spend(
 
 
 # week 8
+
+
+# week 9
+def build_geo_clusters(state: TravelState) -> dict[str, Any]:
+    logger.warning(
+        "geo debug attractions=%s restaurants=%s hotels=%s",
+        len(state.get("attractions") or []),
+        len(state.get("restaurants") or []),
+        len(state.get("hotels") or []),
+    )
+    """
+    Reads attractions/restaurants/hotels out of state, converts them to
+    GeoPoint (skipping any missing lat/lng rather than failing the whole
+    node), clusters them, and writes state["geo_clusters"].
+
+    Degrades gracefully: fewer than 3 geocoded points just returns a
+    single implicit cluster (see _GeoClusterBuilder.cluster), and this node
+    never raises -- a clustering failure shouldn't block build_itinerary or
+    assemble_output from running with whatever else succeeded.
+    """
+    # city = state.get("preferences", {}).get("destination_city", "unknown")
+    prefs = _prefs(state)
+
+    city = prefs.get(
+        "destination_city",
+        prefs.get("destination", "unknown"),
+    )
+    points = _collect_points(state)
+
+    if not points:
+        logger.warning("no geocoded points available, skipping clustering")
+        return {"geo_clusters": None}
+
+    try:
+        result = _cluster_builder.cluster(city, points)
+        logger.info(
+            "geo clusters built",
+            extra={
+                "city": city,
+                "num_points": len(points),
+                "num_clusters": len(result.clusters),
+            },
+        )
+        return {"geo_clusters": result.as_dict()}
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- clustering failure must not break the graph
+        logger.error("geo clustering failed", extra={"error": str(exc)})
+        return {"geo_clusters": None}
+
+
+def _collect_points(state: TravelState) -> list[GeoPoint]:
+    points: list[GeoPoint] = []
+
+    # attractions = state.get("attraction_results") or []
+    # attractions: list[dict[str, Any]] = state.get("attraction_results") or []
+    attractions = state.get("attraction_results") or state.get("attractions") or []
+
+    for attraction in attractions:
+
+        # for attraction in state.get("attractions") or []:
+        if (
+            attraction.get("latitude") is not None
+            and attraction.get("longitude") is not None
+        ):
+            points.append(
+                GeoPoint(
+                    id=attraction.get("id", attraction.get("name", "")),
+                    name=attraction.get("name", "unknown attraction"),
+                    latitude=attraction["latitude"],
+                    longitude=attraction["longitude"],
+                )
+            )
+
+    # restaurants = state.get("restaurant_results") or []
+    # restaurants: list[dict[str, Any]] = state.get("restaurant_results") or []
+
+    restaurants = state.get("restaurant_results") or state.get("restaurants") or []
+
+    for restaurant in restaurants:
+
+        # for restaurant in state.get("restaurants") or []:
+        if (
+            restaurant.get("latitude") is not None
+            and restaurant.get("longitude") is not None
+        ):
+            points.append(
+                GeoPoint(
+                    id=restaurant.get("id", restaurant.get("name", "")),
+                    name=restaurant.get("name", "unknown restaurant"),
+                    latitude=restaurant["latitude"],
+                    longitude=restaurant["longitude"],
+                )
+            )
+
+    # hotels = state.get("hotels") or []
+    # hotels = state.get("hotel_results") or []
+    # hotels: list[dict[str, Any]] = state.get("hotel_results") or []
+
+    hotels = state.get("hotel_results") or state.get("hotels") or []
+
+    if (
+        hotels
+        and hotels[0].get("latitude") is not None
+        and hotels[0].get("longitude") is not None
+    ):
+        points.append(
+            GeoPoint(
+                id=hotels[0].get("id", "hotel"),
+                name=hotels[0].get("name", "hotel"),
+                latitude=hotels[0]["latitude"],
+                longitude=hotels[0]["longitude"],
+            )
+        )
+
+    return points
+
+
+# week 9

@@ -1,0 +1,20 @@
+{
+  "city": "Tokyo",
+  "points": [
+    {"id":"p1","name":"Shibuya Crossing","latitude":35.6595,"longitude":139.7005},
+    {"id":"p2","name":"Hachiko","latitude":35.6591,"longitude":139.7004},
+    {"id":"p3","name":"Shibuya Sky","latitude":35.6580,"longitude":139.7016},
+    {"id":"p4","name":"Yoyogi Park","latitude":35.6717,"longitude":139.6949},
+
+    {"id":"p5","name":"Sensoji","latitude":35.7148,"longitude":139.7967},
+    {"id":"p6","name":"Asakusa Shrine","latitude":35.7155,"longitude":139.7987},
+    {"id":"p7","name":"Tokyo Skytree","latitude":35.7100,"longitude":139.8107},
+    {"id":"p8","name":"Sumida Park","latitude":35.7117,"longitude":139.8010},
+
+    {"id":"p9","name":"Tokyo Station","latitude":35.6812,"longitude":139.7671},
+    {"id":"p10","name":"Imperial Palace","latitude":35.6852,"longitude":139.7528},
+    {"id":"p11","name":"Marunouchi","latitude":35.6810,"longitude":139.7640},
+
+    {"id":"p12","name":"Ghibli Museum","latitude":35.6962,"longitude":139.5703}
+  ]
+}
