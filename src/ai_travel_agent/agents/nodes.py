@@ -276,39 +276,37 @@ def track_budget(state: TravelState) -> dict[str, Any]:
     return {"budget_summary": summary, "budget_error": None}
 
 
-# ── NEW Week 5: build_itinerary ───────────────────────────────────────────────
+# ── Week 11: build_itinerary (unified optimizer) ─────────────────────────────
 
 
 def build_itinerary(state: TravelState) -> dict[str, Any]:
     """
-    Week 5 node — assembles all tool results into a structured Itinerary.
-    Runs after track_budget, before assemble_output.
-    Writes itinerary_result to state.
+    Week 11 — calls the unified multi-constraint optimizer.
+    Replaces the old ItineraryBuilderTool with optimizer/itinerary_builder.py
+    which adds geo-clustering, priority scheduling, backtracking, and
+    cross-day balance on top of the existing pipeline data.
     """
+    from ai_travel_agent.optimizer.itinerary_builder import build_itinerary as _build
+
     prefs = _prefs(state)
+    attractions = state.get("attraction_results") or []
+    weather = state.get("weather_results") or []
+
     logger.info(
-        "build_itinerary: destination=%s days=%s",
+        "build_itinerary (Week 11 optimizer): destination=%s days=%s attractions=%d",
         prefs.get("destination"),
         prefs.get("duration_days"),
+        len(attractions),
     )
 
-    result, err = _safe_run(
-        "ItineraryBuilder",
-        _itinerary_tool._run,
-        preferences=prefs,
-        flights=state.get("flight_results") or [],
-        hotels=state.get("hotel_results") or [],
-        attractions=state.get("attraction_results") or [],
-        restaurants=state.get("restaurant_results") or [],
-        weather=state.get("weather_results") or [],
-        budget_summary=state.get("budget_summary") or {},
-    )
-
-    if err or result is None:
-        logger.error("ItineraryBuilder failed: %s", err)
+    try:
+        itinerary = _build(prefs, attractions, weather)
+        result = itinerary.model_dump()
+    except Exception as exc:
+        logger.error("optimizer/itinerary_builder failed: %s", exc)
         return {
             "itinerary_result": None,
-            "itinerary_error": err or "builder returned nothing",
+            "itinerary_error": str(exc),
         }
 
     days = result.get("days", [])

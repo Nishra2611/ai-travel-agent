@@ -225,13 +225,8 @@ class TestItineraryInFinalOutput:
 class TestItineraryBuilderFailureDoesNotCrashGraph:
     def test_graph_still_finishes_when_builder_fails(self, graph, session_id) -> None:
         p = _all_patches()
-        p["osrm"] = patch(
-            "ai_travel_agent.tools.itinerary_builder.get_travel_time_safe",
-            return_value=20,
-        )
-        # make the builder itself fail
         builder_fail = patch(
-            "ai_travel_agent.agents.nodes._itinerary_tool._run",
+            "ai_travel_agent.optimizer.itinerary_builder.build_itinerary",
             side_effect=Exception("builder crashed"),
         )
         with (

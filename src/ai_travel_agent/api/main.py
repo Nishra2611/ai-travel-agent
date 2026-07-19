@@ -1,11 +1,4 @@
-"""
-PlanResponse now includes the itinerary field.
-New endpoint: GET /api/plan/{session_id}/itinerary
-  Returns just the day-by-day Itinerary for a completed session.
-All existing endpoints are unchanged.
-"""
-
-from __future__ import annotations
+"""FastAPI application entry point."""
 
 import uuid
 from typing import Any
@@ -14,6 +7,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from ai_travel_agent.agents.graph import build_graph
+from ai_travel_agent.evaluation.judge import evaluate_itinerary
 from ai_travel_agent.tools.attraction_finder import AttractionFinderTool
 from ai_travel_agent.tools.budget_tracker import BudgetTrackerTool
 from ai_travel_agent.tools.dummy_tool import DummyFlightTool
@@ -22,7 +17,17 @@ from ai_travel_agent.tools.restaurant_finder import RestaurantFinderTool
 from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.cache import cache
 
-app = FastAPI(title="AI Travel Agent", version="0.5.0")
+_graph = build_graph(db_path="data/checkpoints.db")
+
+_attraction_tool = AttractionFinderTool()
+_restaurant_tool = RestaurantFinderTool()
+
+app = FastAPI(
+    title="AI Travel Agent",
+    description="Autonomous AI Travel Planning Agent API",
+    version="0.1.0",
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -33,24 +38,8 @@ app.add_middleware(
 
 flight_tool = DummyFlightTool()
 hotel_tool = HotelSearchTool()
-_attraction_tool = AttractionFinderTool()
-_restaurant_tool = RestaurantFinderTool()
 _weather_tool = WeatherCheckerTool()
 _budget_tool = BudgetTrackerTool()
-
-_agent = None
-
-
-def _get_agent() -> Any:
-    global _agent
-    if _agent is None:
-        from ai_travel_agent.agents.graph import build_graph
-
-        _agent = build_graph()
-    return _agent
-
-
-# ── models ────────────────────────────────────────────────────────────────────
 
 
 class BudgetPayload(BaseModel):
@@ -62,37 +51,31 @@ class BudgetPayload(BaseModel):
     description: str | None = None
 
 
-class PlanRequest(BaseModel):
-    message: str
-    session_id: str | None = None
+class PlanTripPayload(BaseModel):
+    request: str
 
 
-class PlanResponse(BaseModel):
-    session_id: str
-    status: str
-    destination: str | None = None
-    itinerary: dict[str, Any] | None = None  # ← new Week 5
-    flights: list[dict[str, Any]] = []
-    hotels: list[dict[str, Any]] = []
-    attractions: list[dict[str, Any]] = []
-    restaurants: list[dict[str, Any]] = []
-    weather: list[dict[str, Any]] = []
-    budget: dict[str, Any] = {}
-    errors: dict[str, str] = {}
-    message: str = ""
-
-
-# ── existing endpoints (unchanged) ────────────────────────────────────────────
+class EvaluatePayload(BaseModel):
+    itinerary: dict[str, Any]
+    request: str
 
 
 @app.get("/")
 def root() -> dict[str, Any]:
-    return {"message": "AI Travel Agent", "version": app.version}
+    return {
+        "message": "AI Travel Agent is running",
+        "version": app.version,
+        "endpoints": [
+            "/health", "/flights", "/api/hotels", "/cache/health",
+            "/api/trip/plan", "/api/trip/evaluate", "/docs",
+        ],
+    }
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok" if cache.is_healthy() else "degraded"}
+    healthy = cache.is_healthy()
+    return {"status": "ok" if healthy else "degraded"}
 
 
 @app.get("/cache/health")
@@ -143,6 +126,7 @@ def search_hotels(
         min_rating=min_rating,
         hotel_class=hotel_class,
     )
+
     return {
         "city": city,
         "check_in": check_in,
@@ -155,22 +139,57 @@ def search_hotels(
 
 @app.get("/api/trip/attractions")
 def get_attractions(
-    city: str, country: str | None = None, limit: int = 10
+    city: str,
+    country: str | None = None,
+    limit: int = 10,
 ) -> list[dict[str, Any]]:
+    """Top attractions for a city — name, lat/lng, hours, rating."""
     try:
         return _attraction_tool._run(city=city, country=country, limit=limit)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=502, detail=f"attraction lookup failed: {exc}"
+        ) from exc
+
+
+@app.post("/api/trip/plan")
+def plan_trip(payload: PlanTripPayload) -> dict[str, Any]:
+    """Full Week 11 optimizer pipeline: natural language → itinerary."""
+    try:
+        thread_id = str(uuid.uuid4())
+        result = _graph.invoke(
+            {"raw_input": payload.request, "status": "parse", "messages": []},
+            config={"configurable": {"thread_id": thread_id}},
+        )
+        itinerary = (result.get("final_output") or {}).get("itinerary") or {}
+        if not itinerary:
+            raise HTTPException(status_code=500, detail=result.get("error", "planning failed"))
+        return {"thread_id": thread_id, "itinerary": itinerary}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/trip/evaluate")
+def evaluate_trip(payload: EvaluatePayload) -> dict[str, Any]:
+    """Week 12 LLM-as-judge: score an itinerary on 10 dimensions."""
+    try:
+        result = evaluate_itinerary(payload.itinerary, payload.request)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/api/trip/restaurants")
 def get_restaurants(
     city: str,
     cuisine: str | None = None,
-    budget: str | None = None,
+    budget: str | None = None,  # "$" | "$$" | "$$$" | "$$$$"
     min_rating: float = 0.0,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
+    """Restaurants filtered by cuisine, budget tier, and minimum rating."""
     try:
         return _restaurant_tool._run(
             city=city,
@@ -180,85 +199,6 @@ def get_restaurants(
             limit=limit,
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-# ── agent endpoint (updated for Week 5) ──────────────────────────────────────
-
-
-@app.post("/api/plan", response_model=PlanResponse)
-def plan_trip(req: PlanRequest) -> PlanResponse:
-    """
-    POST /api/plan
-    {"message": "Paris 5 days $3000", "session_id": "optional"}
-
-    Returns a full PlanResponse including day-by-day itinerary.
-    """
-    session_id = req.session_id or f"session_{uuid.uuid4().hex[:8]}"
-    try:
-        graph = _get_agent()
-        final_state = graph.invoke(
-            {
-                "raw_input": req.message,
-                "status": "parse",
-                "messages": [{"role": "user", "content": req.message}],
-            },
-            config={"configurable": {"thread_id": session_id}},
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Agent failed: {exc}") from exc
-
-    output: dict[str, Any] = final_state.get("final_output") or {}
-    messages = final_state.get("messages") or []
-    last_msg = next(
-        (m["content"] for m in reversed(messages) if m.get("role") == "assistant"),
-        "Trip planning complete.",
-    )
-    return PlanResponse(
-        session_id=session_id,
-        status=final_state.get("status", "done"),
-        destination=output.get("destination"),
-        itinerary=output.get("itinerary"),  # ← new Week 5
-        flights=output.get("flights", []),
-        hotels=output.get("hotels", []),
-        attractions=output.get("attractions", []),
-        restaurants=output.get("restaurants", []),
-        weather=output.get("weather", []),
-        budget=output.get("budget", {}),
-        errors=output.get("errors", {}),
-        message=last_msg,
-    )
-
-
-# ── NEW: itinerary-only endpoint ──────────────────────────────────────────────
-
-
-@app.post("/api/itinerary")
-def build_itinerary_direct(
-    preferences: dict[str, Any],
-    flights: list[dict[str, Any]] | None = None,
-    hotels: list[dict[str, Any]] | None = None,
-    attractions: list[dict[str, Any]] | None = None,
-    restaurants: list[dict[str, Any]] | None = None,
-    weather: list[dict[str, Any]] | None = None,
-    budget_summary: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """
-    Call ItineraryBuilderTool directly without the full agent.
-    Useful for testing / frontend development.
-    """
-    from ai_travel_agent.tools.itinerary_builder import ItineraryBuilderTool
-
-    tool = ItineraryBuilderTool()
-    try:
-        return tool._run(
-            preferences=preferences,
-            flights=flights or [],
-            hotels=hotels or [],
-            attractions=attractions or [],
-            restaurants=restaurants or [],
-            weather=weather or [],
-            budget_summary=budget_summary or {},
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=502, detail=f"restaurant lookup failed: {exc}"
+        ) from exc

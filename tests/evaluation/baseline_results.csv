@@ -1,26 +1,26 @@
 id,category,destination,duration_days,budget_usd,planning_time_ms,judge_time_ms,error,feasibility,budget_accuracy,geo_efficiency,weather_match,completeness,priority_adherence,walking_balance,time_realism,activity_diversity,preference_match
-beach_01,beach,Bali,5,2000,6054.7,7159.3,,5,1,4,5,4,3,2,3,3,3
-beach_02,beach,Maldives,4,3500,5685.9,4511.2,,1,1,2,5,2,5,5,4,2,2
-beach_03,beach,Phuket,7,1500,8520.3,4815.4,,3,1,3,5,3,3,2,3,5,2
-beach_04,beach,Cancun,5,2500,10825.0,4545.4,,1,1,2,5,2,5,5,4,2,2
-city_01,city,Paris,5,3000,7701.2,4575.4,,3,1,3,5,3,3,2,3,5,3
-city_02,city,Tokyo,7,4000,12382.5,4884.2,,1,1,2,5,2,5,5,4,2,2
-city_03,city,New York,3,1800,9384.6,4564.8,,5,1,4,5,4,3,3,3,2,2
-city_04,city,London,6,3500,12691.3,4549.3,,2,1,3,5,3,3,2,3,4,2
-adventure_01,adventure,Kathmandu,7,2000,23600.9,4731.9,,1,1,2,5,2,5,5,4,2,2
-adventure_02,adventure,San Jose,5,2500,13315.9,4626.6,,1,1,2,5,2,5,5,4,2,2
-adventure_03,adventure,Queenstown,4,3000,14663.4,4563.2,,5,1,4,5,4,3,2,3,3,3
-adventure_04,adventure,Punta Arenas,7,4000,7676.5,4534.7,,1,1,2,5,2,3,2,3,2,2
-family_01,family,Orlando,5,5000,6703.7,4591.4,,5,1,4,5,4,3,3,3,5,3
-family_02,family,Barcelona,6,4000,6438.7,4651.2,,1,1,2,5,2,3,2,3,2,2
-family_03,family,Singapore,4,3500,5388.9,4492.4,,5,1,4,5,4,3,2,3,4,3
-family_04,family,Rome,5,3000,15279.3,4579.1,,1,1,2,5,2,5,5,4,2,2
-solo_01,solo,Amsterdam,3,1200,11409.9,7607.0,,3,3,3,3,3,3,3,3,3,3
-solo_02,solo,Lisbon,4,1000,316.8,7411.7,,3,3,3,3,3,3,3,3,3,3
-solo_03,solo,Bangkok,5,800,142.4,7482.7,,3,3,3,3,3,3,3,3,3,3
-solo_04,solo,Kyoto,4,1500,160.0,7629.1,,3,3,3,3,3,3,3,3,3,3
-honeymoon_01,honeymoon,Santorini,5,5000,227.6,5119.9,,1,1,2,5,2,5,5,4,2,2
-honeymoon_02,honeymoon,Venice,4,4000,8885.4,4626.6,,4,1,3,5,3,3,2,3,2,2
-honeymoon_03,honeymoon,Bora Bora,6,8000,9076.7,4775.6,,1,1,2,5,2,5,5,4,2,2
-honeymoon_04,honeymoon,Prague,5,3000,13879.2,4513.2,,3,1,3,5,3,3,2,3,3,2
-honeymoon_05,honeymoon,Naples,7,6000,19289.7,4594.6,,1,1,2,5,2,5,5,4,2,2
+beach_01,beach,Bali,5,2000,16004.7,23457.3,,1,1,2,3,1,2,4,3,2,1
+beach_02,beach,Maldives,4,3500,6446.4,22994.1,,1,1,1,1,1,1,1,1,1,1
+beach_03,beach,Phuket,7,1500,5216.5,13229.7,,4,1,3,3,2,3,1,3,2,2
+beach_04,beach,Cancun,5,2500,123.7,22555.2,,1,1,1,1,1,1,1,1,1,1
+city_01,city,Paris,5,3000,16815.4,35746.9,,1,1,3,2,1,4,3,1,2,3
+city_02,city,Tokyo,7,4000,18670.0,14918.7,,1,5,2,3,1,2,3,3,2,1
+city_03,city,New York,3,1800,7636.5,17292.0,,1,1,1,1,3,2,1,2,1,2
+city_04,city,London,6,3500,9652.2,24704.1,,1,1,1,1,5,1,1,1,5,1
+adventure_01,adventure,Kathmandu,7,2000,9041.9,15119.0,,1,1,1,1,5,5,1,1,5,1
+adventure_02,adventure,San Jose,5,2500,6316.8,11063.5,,1,5,1,1,5,1,1,1,1,1
+adventure_03,adventure,Queenstown,4,3000,15266.0,15307.8,,1,1,1,1,5,1,1,1,5,1
+adventure_04,adventure,Punta Arenas,7,4000,9330.3,14605.3,,1,5,1,5,3,1,1,5,1,1
+family_01,family,Orlando,5,5000,9364.7,19879.4,,1,1,1,1,5,1,1,1,1,1
+family_02,family,Barcelona,6,4000,7974.0,18844.1,,1,5,1,3,1,2,3,3,1,2
+family_03,family,Singapore,4,3500,11303.5,57487.1,,1,1,1,1,1,1,1,1,1,1
+family_04,family,Rome,5,3000,16239.6,26972.2,,1,1,1,1,2,3,1,1,1,3
+solo_01,solo,Amsterdam,3,1200,9324.0,15646.4,,1,5,2,3,1,4,2,3,2,4
+solo_02,solo,Lisbon,4,1000,14206.0,17521.2,,5,1,1,1,5,1,1,1,1,1
+solo_03,solo,Bangkok,5,800,5978.1,12581.6,,1,5,1,5,2,1,1,3,1,1
+solo_04,solo,Kyoto,4,1500,13867.3,16171.6,,1,1,3,2,1,3,2,2,1,3
+honeymoon_01,honeymoon,Santorini,5,5000,6966.9,12831.6,,1,5,2,3,1,1,2,3,1,1
+honeymoon_02,honeymoon,Venice,4,4000,7491.5,17098.3,,1,5,1,3,2,1,1,3,1,1
+honeymoon_03,honeymoon,Bora Bora,6,8000,13538.1,15820.6,,1,5,1,5,5,1,1,5,1,1
+honeymoon_04,honeymoon,Prague,5,3000,10313.7,15009.9,,1,1,3,5,1,3,4,5,2,3
+honeymoon_05,honeymoon,Naples,7,6000,15234.0,23618.5,,1,1,2,5,2,5,5,4,2,2
