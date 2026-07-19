@@ -1,0 +1,32 @@
+[
+  {
+    "rank": 1,
+    "dimension": "budget_accuracy",
+    "avg_score": 1.32,
+    "improvement_task": "Improve cost estimation for restaurants and transport; add a post-build budget reconciliation pass that trims activities until within 5% of budget."
+  },
+  {
+    "rank": 2,
+    "dimension": "preference_match",
+    "avg_score": 2.36,
+    "improvement_task": "Pass activity_types and travel_style from preferences into the cluster-to-day assignment so preferred categories are prioritised in slot selection."
+  },
+  {
+    "rank": 3,
+    "dimension": "feasibility",
+    "avg_score": 2.52,
+    "improvement_task": "Tighten opening-hours validation in ItineraryBuilder; add a pre-flight check that rejects activities outside their open window before scheduling."
+  },
+  {
+    "rank": 4,
+    "dimension": "geo_efficiency",
+    "avg_score": 2.76,
+    "improvement_task": "Strengthen cluster-to-day assignment so build_itinerary always picks activities from the same DBSCAN cluster for a given day."
+  },
+  {
+    "rank": 5,
+    "dimension": "completeness",
+    "avg_score": 2.76,
+    "improvement_task": "Ensure every day has at least one morning, one afternoon, and one evening slot filled; add a gap-filler pass after conflict resolution."
+  }
+]

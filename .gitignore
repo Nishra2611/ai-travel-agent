@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SQLite checkpoint databases (runtime state, not source)
+data/*.db
+data/*.db-shm
+data/*.db-wal
