@@ -35,6 +35,7 @@ def places_text_search(
         },
         timeout=10,
     )
+
     print("STATUS:", response.status_code)
     print("RESPONSE:", response.text)
     response.raise_for_status()
@@ -72,6 +73,7 @@ def find_place_rating(
     rating = results[0].get("rating")
 
     if isinstance(rating, int | float):
+        # if isinstance(rating, (int, float)):
         return float(rating)
 
     return None

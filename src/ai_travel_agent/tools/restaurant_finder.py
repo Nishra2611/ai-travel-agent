@@ -40,7 +40,7 @@ class RestaurantFinderTool(BaseTool):
     name: str = "restaurant_finder"
 
     description: str = (
-        "Find restaurants in a city filtered by " "cuisine, budget and minimum rating."
+        "Find restaurants in a city filtered by cuisine, budget and minimum rating."
     )
 
     args_schema: type[BaseModel] = RestaurantFinderInput
@@ -93,6 +93,7 @@ class RestaurantFinderTool(BaseTool):
             query,
             max_results=30,
         )
+
         print("RAW PLACES:", results)
 
         target_price = BUDGET_TO_PRICE_LEVEL.get(budget) if budget else None

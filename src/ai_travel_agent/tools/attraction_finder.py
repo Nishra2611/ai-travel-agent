@@ -77,7 +77,7 @@ class AttractionFinderInput(BaseModel):
 class AttractionFinderTool(BaseTool):
     name: str = "attraction_finder"
     description: str = (
-        "Find tourist attractions in a city with coordinates " "and opening hours."
+        "Find tourist attractions in a city with coordinates and opening hours."
     )
     args_schema: type[BaseModel] = AttractionFinderInput
 

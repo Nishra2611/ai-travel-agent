@@ -8,18 +8,27 @@ from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 
 MOCK_GEOCODE = {"lat": 51.5074, "lng": -0.1278, "display_name": "London, UK"}
 
+
 # Simulates 3 days × 4 slots each (3-hour intervals)
 def _make_forecast5_response():
     slots = []
     days = ["2025-06-18", "2025-06-19", "2025-06-20"]
     for day in days:
         for hour in ["06:00:00", "09:00:00", "12:00:00", "15:00:00"]:
-            slots.append({
-                "dt_txt": f"{day} {hour}",
-                "main": {"temp": 15.0 if "06" in hour else 20.0, "humidity": 70},
-                "weather": [{"description": "partly cloudy" if "06" in hour else "sunny intervals"}],
-                "pop": 0.1 if "06" in hour else 0.3,
-            })
+            slots.append(
+                {
+                    "dt_txt": f"{day} {hour}",
+                    "main": {"temp": 15.0 if "06" in hour else 20.0, "humidity": 70},
+                    "weather": [
+                        {
+                            "description": (
+                                "partly cloudy" if "06" in hour else "sunny intervals"
+                            )
+                        }
+                    ],
+                    "pop": 0.1 if "06" in hour else 0.3,
+                }
+            )
     return {"list": slots}
 
 
@@ -46,8 +55,12 @@ def test_forecast5_daily_aggregation(tool, monkeypatch):
     mock_resp.raise_for_status.return_value = None
     mock_resp.json.return_value = _make_forecast5_response()
 
-    with patch("ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE), \
-         patch("httpx.get", return_value=mock_resp):
+    with (
+        patch(
+            "ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE
+        ),
+        patch("httpx.get", return_value=mock_resp),
+    ):
         result = tool._run(city="London", days=5)
 
     assert isinstance(result, list)
@@ -68,12 +81,18 @@ def test_condition_is_capitalised(tool, monkeypatch):
     mock_resp.raise_for_status.return_value = None
     mock_resp.json.return_value = _make_forecast5_response()
 
-    with patch("ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE), \
-         patch("httpx.get", return_value=mock_resp):
+    with (
+        patch(
+            "ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE
+        ),
+        patch("httpx.get", return_value=mock_resp),
+    ):
         result = tool._run(city="London", days=3)
 
     for day in result:
-        assert day["condition"][0].isupper(), f"condition not capitalised: {day['condition']}"
+        assert day["condition"][
+            0
+        ].isupper(), f"condition not capitalised: {day['condition']}"
 
 
 def test_days_param_caps_result_length(tool, monkeypatch):
@@ -83,8 +102,12 @@ def test_days_param_caps_result_length(tool, monkeypatch):
     mock_resp.raise_for_status.return_value = None
     mock_resp.json.return_value = _make_forecast5_response()  # 3 days of data
 
-    with patch("ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE), \
-         patch("httpx.get", return_value=mock_resp):
+    with (
+        patch(
+            "ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE
+        ),
+        patch("httpx.get", return_value=mock_resp),
+    ):
         result_2 = tool._run(city="London", days=2)
         result_3 = tool._run(city="London", days=3)
 
@@ -98,8 +121,12 @@ def test_graceful_failure_on_http_error(tool, monkeypatch):
     mock_resp = MagicMock()
     mock_resp.raise_for_status.side_effect = Exception("401 Unauthorized")
 
-    with patch("ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE), \
-         patch("httpx.get", return_value=mock_resp):
+    with (
+        patch(
+            "ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE
+        ),
+        patch("httpx.get", return_value=mock_resp),
+    ):
         result = tool._run(city="London", days=5)
 
     # Must return [] not raise

@@ -13,6 +13,14 @@ class TimeSlot(StrEnum):
     EVENING = "evening"
 
 
+class Environment(StrEnum):
+    """Indoor/outdoor classification for weather-aware scheduling (Week 7)."""
+
+    INDOOR = "indoor"
+    OUTDOOR = "outdoor"
+    MIXED = "mixed"
+
+
 class ItineraryActivity(BaseModel):
     time_slot: TimeSlot
 
@@ -37,6 +45,16 @@ class ItineraryActivity(BaseModel):
     travel_time_to_next_minutes: int | None = None
     notes: str | None = None
 
+    # Week 6–7: conflict detection & weather scheduling
+    environment: Environment = Environment.MIXED
+    activity_category: str = "attraction"  # attraction | restaurant | flight | transfer
+    open_time: time | None = None
+    close_time: time | None = None
+    locked: bool = False
+    priority: int = Field(default=3, ge=1, le=5)
+    latitude: float | None = None
+    longitude: float | None = None
+
 
 class DayPlan(BaseModel):
     date: date
@@ -50,6 +68,20 @@ class DayPlan(BaseModel):
     daily_budget_usd: float = Field(default=0.0, ge=0)
 
     weather_forecast: str | None = None
+
+    # Week 6–7: fallback location for auto-inserted meals
+    hotel_latitude: float | None = None
+    hotel_longitude: float | None = None
+
+
+class WeatherForecast(BaseModel):
+    """Structured forecast consumed by weather_scorer / weather_scheduler."""
+
+    the_date: date
+    temp_c: float
+    rain_probability: float = Field(default=0.0, ge=0, le=1)
+    wind_kph: float = Field(default=0.0, ge=0)
+    condition: str = ""
 
 
 class Itinerary(BaseModel):

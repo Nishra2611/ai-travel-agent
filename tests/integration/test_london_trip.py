@@ -141,7 +141,6 @@ def test_london_five_day_trip(fake_redis):
         patch.object(WeatherCheckerTool, "_forecast5", return_value=MOCK_WEATHER),
         patch("ai_travel_agent.utils.cache.get_redis_client", return_value=fake_redis),
     ):
-
         attractions = AttractionFinderTool()._run(city="London", country="UK", limit=10)
         assert 1 <= len(attractions) <= 10
         assert all({"name", "lat", "lng"}.issubset(a.keys()) for a in attractions)
