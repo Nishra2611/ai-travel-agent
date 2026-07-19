@@ -1,0 +1,20 @@
+{
+  "city": "New York",
+  "points": [
+    {"id":"p1","name":"Times Square","latitude":40.7580,"longitude":-73.9855},
+    {"id":"p2","name":"Bryant Park","latitude":40.7536,"longitude":-73.9832},
+    {"id":"p3","name":"Rockefeller Center","latitude":40.7587,"longitude":-73.9787},
+    {"id":"p4","name":"Grand Central","latitude":40.7527,"longitude":-73.9772},
+
+    {"id":"p5","name":"Central Park South","latitude":40.7678,"longitude":-73.9718},
+    {"id":"p6","name":"Columbus Circle","latitude":40.7681,"longitude":-73.9819},
+    {"id":"p7","name":"Museum Mile","latitude":40.7794,"longitude":-73.9632},
+    {"id":"p8","name":"Met Museum","latitude":40.7794,"longitude":-73.9632},
+
+    {"id":"p9","name":"Wall Street","latitude":40.7060,"longitude":-74.0086},
+    {"id":"p10","name":"Battery Park","latitude":40.7033,"longitude":-74.0170},
+    {"id":"p11","name":"World Trade Center","latitude":40.7127,"longitude":-74.0134},
+
+    {"id":"p12","name":"Coney Island","latitude":40.5749,"longitude":-73.9850}
+  ]
+}

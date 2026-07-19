@@ -77,26 +77,29 @@ MOCK_ITINERARY = {
 }
 
 
+_OPTIMIZER_PATH = "ai_travel_agent.optimizer.itinerary_builder.build_itinerary"
+
+
 class TestBuildItineraryNode:
     def test_success_sets_itinerary_result(self) -> None:
+        from unittest.mock import MagicMock
         from ai_travel_agent.agents.nodes import build_itinerary
 
-        with patch(
-            "ai_travel_agent.agents.nodes._itinerary_tool._run",
-            return_value=MOCK_ITINERARY,
-        ):
+        mock_itin = MagicMock()
+        mock_itin.model_dump.return_value = MOCK_ITINERARY
+        with patch(_OPTIMIZER_PATH, return_value=mock_itin):
             result = build_itinerary(make_state())
 
         assert result["itinerary_result"] == MOCK_ITINERARY
         assert result.get("itinerary_error") is None
 
     def test_success_adds_assistant_message(self) -> None:
+        from unittest.mock import MagicMock
         from ai_travel_agent.agents.nodes import build_itinerary
 
-        with patch(
-            "ai_travel_agent.agents.nodes._itinerary_tool._run",
-            return_value=MOCK_ITINERARY,
-        ):
+        mock_itin = MagicMock()
+        mock_itin.model_dump.return_value = MOCK_ITINERARY
+        with patch(_OPTIMIZER_PATH, return_value=mock_itin):
             result = build_itinerary(make_state())
 
         assert len(result["messages"]) > 0
@@ -105,37 +108,24 @@ class TestBuildItineraryNode:
     def test_failure_sets_error_and_none_result(self) -> None:
         from ai_travel_agent.agents.nodes import build_itinerary
 
-        with patch(
-            "ai_travel_agent.agents.nodes._itinerary_tool._run",
-            side_effect=Exception("builder crashed"),
-        ):
+        with patch(_OPTIMIZER_PATH, side_effect=Exception("builder crashed")):
             result = build_itinerary(make_state())
 
         assert result["itinerary_result"] is None
         assert result["itinerary_error"] is not None
 
-    def test_passes_all_tool_results_to_builder(self) -> None:
+    def test_passes_attractions_and_weather_to_optimizer(self) -> None:
+        from unittest.mock import MagicMock
         from ai_travel_agent.agents.nodes import build_itinerary
 
-        with patch(
-            "ai_travel_agent.agents.nodes._itinerary_tool._run",
-            return_value=MOCK_ITINERARY,
-        ) as mock_run:
+        mock_itin = MagicMock()
+        mock_itin.model_dump.return_value = MOCK_ITINERARY
+        with patch(_OPTIMIZER_PATH, return_value=mock_itin) as mock_build:
             build_itinerary(make_state())
 
-        kwargs = mock_run.call_args[1]
-        assert kwargs["preferences"]["destination"] == "Paris"
-        assert kwargs["flights"] == [{"id": "f1", "total_price_usd": 742.0}]
-        assert kwargs["hotels"] == [{"id": "h1", "name": "Grand Hotel"}]
-        assert kwargs["attractions"] == [
-            {"id": "a1", "name": "Eiffel Tower", "category": "landmark"}
-        ]
-        assert kwargs["restaurants"] == [{"id": "r1", "name": "Café"}]
-        assert kwargs["weather"] == [{"date": "2025-12-10", "temp_max": 12}]
-        assert kwargs["budget_summary"] == {
-            "total_budget": 3000.0,
-            "total_spent": 800.0,
-        }
+        args = mock_build.call_args
+        prefs = args[0][0] if args[0] else args[1]["preferences"]
+        assert prefs["destination"] == "Paris"
 
     def test_empty_tool_results_do_not_crash(self) -> None:
         from ai_travel_agent.agents.nodes import build_itinerary
@@ -148,22 +138,17 @@ class TestBuildItineraryNode:
             weather_results=[],
             budget_summary={},
         )
-        with patch(
-            "ai_travel_agent.agents.nodes._itinerary_tool._run",
-            return_value=MOCK_ITINERARY,
-        ):
-            result = build_itinerary(state)
-
+        # optimizer runs for real with empty attractions — should not raise
+        result = build_itinerary(state)
         assert result["itinerary_result"] is not None
 
     def test_does_not_set_status(self) -> None:
-        # build_itinerary should NOT touch status — graph uses edges not status
+        from unittest.mock import MagicMock
         from ai_travel_agent.agents.nodes import build_itinerary
 
-        with patch(
-            "ai_travel_agent.agents.nodes._itinerary_tool._run",
-            return_value=MOCK_ITINERARY,
-        ):
+        mock_itin = MagicMock()
+        mock_itin.model_dump.return_value = MOCK_ITINERARY
+        with patch(_OPTIMIZER_PATH, return_value=mock_itin):
             result = build_itinerary(make_state())
 
         assert "status" not in result

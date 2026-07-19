@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import traceback
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from ai_travel_agent.agents.state import TravelState
 
@@ -36,7 +36,22 @@ from ai_travel_agent.budget.budget_optimizer import (
     _BudgetOptimizer,
 )
 
+# week 10
+from ai_travel_agent.geo.distance_matrix_client import (
+    GeoPoint,
+    get_distance_matrix_safe,
+)
+
 # till here week 8
+# week 9
+# from ai_travel_agent.geo.distance_matrix_client import GeoPoint
+from ai_travel_agent.geo.geo_clustering import _GeoClusterBuilder
+from ai_travel_agent.route.route_optimizer import (
+    _RouteOptimizer,
+    build_distance_lookup,
+)
+
+# till here week 9
 from ai_travel_agent.tools.attraction_finder import AttractionFinderTool
 from ai_travel_agent.tools.budget_tracker import BudgetTrackerTool
 from ai_travel_agent.tools.flight_search import FlightSearchTool
@@ -47,6 +62,7 @@ from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.logger import get_logger
 
 logger = get_logger(__name__)
+MIN_ACTIVITIES_TO_OPTIMIZE = 2
 
 # ── singletons ────────────────────────────────────────────────────────────────
 _flight_tool = FlightSearchTool()
@@ -57,6 +73,8 @@ _weather_tool = WeatherCheckerTool()
 _budget_tool = BudgetTrackerTool()
 _itinerary_tool = ItineraryBuilderTool()  # ← new Week 5
 _optimizer = _BudgetOptimizer()  # added in week 8
+_cluster_builder = _GeoClusterBuilder()  # added in week 9
+_route_optimizer = _RouteOptimizer()  # week 10
 
 
 def _safe_run(tool_name: str, fn: Any, **kwargs: Any) -> tuple[Any, str | None]:
@@ -258,39 +276,37 @@ def track_budget(state: TravelState) -> dict[str, Any]:
     return {"budget_summary": summary, "budget_error": None}
 
 
-# ── NEW Week 5: build_itinerary ───────────────────────────────────────────────
+# ── Week 11: build_itinerary (unified optimizer) ─────────────────────────────
 
 
 def build_itinerary(state: TravelState) -> dict[str, Any]:
     """
-    Week 5 node — assembles all tool results into a structured Itinerary.
-    Runs after track_budget, before assemble_output.
-    Writes itinerary_result to state.
+    Week 11 — calls the unified multi-constraint optimizer.
+    Replaces the old ItineraryBuilderTool with optimizer/itinerary_builder.py
+    which adds geo-clustering, priority scheduling, backtracking, and
+    cross-day balance on top of the existing pipeline data.
     """
+    from ai_travel_agent.optimizer.itinerary_builder import build_itinerary as _build
+
     prefs = _prefs(state)
+    attractions = state.get("attraction_results") or []
+    weather = state.get("weather_results") or []
+
     logger.info(
-        "build_itinerary: destination=%s days=%s",
+        "build_itinerary (Week 11 optimizer): destination=%s days=%s attractions=%d",
         prefs.get("destination"),
         prefs.get("duration_days"),
+        len(attractions),
     )
 
-    result, err = _safe_run(
-        "ItineraryBuilder",
-        _itinerary_tool._run,
-        preferences=prefs,
-        flights=state.get("flight_results") or [],
-        hotels=state.get("hotel_results") or [],
-        attractions=state.get("attraction_results") or [],
-        restaurants=state.get("restaurant_results") or [],
-        weather=state.get("weather_results") or [],
-        budget_summary=state.get("budget_summary") or {},
-    )
-
-    if err or result is None:
-        logger.error("ItineraryBuilder failed: %s", err)
+    try:
+        itinerary = _build(prefs, attractions, weather)
+        result = itinerary.model_dump()
+    except Exception as exc:
+        logger.error("optimizer/itinerary_builder failed: %s", exc)
         return {
             "itinerary_result": None,
-            "itinerary_error": err or "builder returned nothing",
+            "itinerary_error": str(exc),
         }
 
     days = result.get("days", [])
@@ -485,3 +501,254 @@ def _extract_actual_spend(
 
 
 # week 8
+
+
+# week 9
+def build_geo_clusters(state: TravelState) -> dict[str, Any]:
+    # attractions = list(state.get("attraction_results") or [])
+    # restaurants = list(state.get("restaurant_results") or [])
+    # hotels = list(state.get("hotel_results") or [])
+
+    # attractions = cast(
+    #     list[dict[str, Any]],
+    #     state.get("attraction_results") or [],
+    # )
+
+    # restaurants = cast(
+    #     list[dict[str, Any]],
+    #     state.get("restaurant_results") or [],
+    # )
+
+    # hotels = cast(
+    #     list[dict[str, Any]],
+    #     state.get("hotel_results") or [],
+    # )
+
+    # attractions = state.get("attraction_results") or state.get("attractions") or []
+
+    # restaurants = state.get("restaurant_results") or state.get("restaurants") or []
+
+    # hotels = state.get("hotel_results") or state.get("hotels") or []
+
+    attractions_dbg = state.get("attraction_results") or []
+    restaurants_dbg = state.get("restaurant_results") or []
+    hotels_dbg = state.get("hotel_results") or []
+
+    logger.warning(
+        "attraction_results=%s restaurant_results=%s hotel_results=%s",
+        len(list(attractions_dbg)),
+        len(list(restaurants_dbg)),
+        len(list(hotels_dbg)),
+    )
+    """
+    Reads attractions/restaurants/hotels out of state, converts them to
+    GeoPoint (skipping any missing lat/lng rather than failing the whole
+    node), clusters them, and writes state["geo_clusters"].
+
+    Degrades gracefully: fewer than 3 geocoded points just returns a
+    single implicit cluster (see _GeoClusterBuilder.cluster), and this node
+    never raises -- a clustering failure shouldn't block build_itinerary or
+    assemble_output from running with whatever else succeeded.
+    """
+    # city = state.get("preferences", {}).get("destination_city", "unknown")
+    prefs = _prefs(state)
+
+    city = prefs.get(
+        "destination_city",
+        prefs.get("destination", "unknown"),
+    )
+    points = _collect_points(state)
+
+    if not points:
+        logger.warning("no geocoded points available, skipping clustering")
+        return {"geo_clusters": None}
+
+    try:
+        result = _cluster_builder.cluster(city, points)
+        logger.info(
+            "geo clusters built",
+            extra={
+                "city": city,
+                "num_points": len(points),
+                "num_clusters": len(result.clusters),
+            },
+        )
+        return {"geo_clusters": result.as_dict()}
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- clustering failure must not break the graph
+        logger.error("geo clustering failed", extra={"error": str(exc)})
+        return {"geo_clusters": None}
+
+
+def _collect_points(state: TravelState) -> list[GeoPoint]:
+    points: list[GeoPoint] = []
+
+    attractions = cast(
+        list[dict[str, Any]],
+        state.get("attraction_results") or state.get("attractions") or [],
+    )
+    for attraction in attractions:
+
+        # for attraction in state.get("attractions") or []:
+        if (
+            attraction.get("latitude") is not None
+            and attraction.get("longitude") is not None
+        ):
+            points.append(
+                GeoPoint(
+                    id=attraction.get("id", attraction.get("name", "")),
+                    name=attraction.get("name", "unknown attraction"),
+                    latitude=attraction["latitude"],
+                    longitude=attraction["longitude"],
+                )
+            )
+
+    restaurants = cast(
+        list[dict[str, Any]],
+        state.get("restaurant_results") or state.get("restaurants") or [],
+    )
+
+    for restaurant in restaurants:
+
+        # for restaurant in state.get("restaurants") or []:
+        if (
+            restaurant.get("latitude") is not None
+            and restaurant.get("longitude") is not None
+        ):
+            points.append(
+                GeoPoint(
+                    id=restaurant.get("id", restaurant.get("name", "")),
+                    name=restaurant.get("name", "unknown restaurant"),
+                    latitude=restaurant["latitude"],
+                    longitude=restaurant["longitude"],
+                )
+            )
+
+    hotels = state.get("hotel_results") or state.get("hotels") or []
+
+    if (
+        hotels
+        and hotels[0].get("latitude") is not None
+        and hotels[0].get("longitude") is not None
+    ):
+        points.append(
+            GeoPoint(
+                id=hotels[0].get("id", "hotel"),
+                name=hotels[0].get("name", "hotel"),
+                latitude=hotels[0]["latitude"],
+                longitude=hotels[0]["longitude"],
+            )
+        )
+
+    return points
+
+
+# week 9
+
+
+# week 10
+def optimize_routes(state: TravelState) -> dict[str, Any]:
+    """
+    For each day in state["itinerary"]["days"]: builds a GeoPoint list from
+    the day's activities + the trip hotel, fetches a per-day distance
+    matrix, runs _RouteOptimizer, and reorders that day's activities list
+    in place to the optimized order. Writes state["route_optimization"]
+    with per-day efficiency_score/improvement_pct for assemble_output to
+    surface.
+
+    Never raises: a day that can't be optimized (missing coordinates, <2
+    activities, distance matrix failure) is left in its original order and
+    recorded with efficiency_score=None rather than blocking the other
+    days or the rest of the graph.
+    """
+    itinerary = state.get("itinerary_result") or state.get("itinerary")
+    hotel_point = _extract_hotel_point(state)
+
+    if not itinerary or not itinerary.get("days") or hotel_point is None:
+        logger.warning(
+            "no itinerary or hotel coordinates available, skipping route optimization"
+        )
+        return {"route_optimization": None}
+
+    per_day_results: dict[str, dict[str, Any]] = {}
+    for day_index, day in enumerate(itinerary["days"]):
+        day_key = f"day_{day_index + 1}"
+        activity_points, activities_by_id = _extract_activity_points(day)
+
+        if len(activity_points) < MIN_ACTIVITIES_TO_OPTIMIZE:
+            per_day_results[day_key] = {
+                "skipped": True,
+                "reason": "fewer than 2 geocoded activities",
+            }
+            continue
+
+        try:
+            matrix = get_distance_matrix_safe(
+                [hotel_point, *activity_points], profile="walking"
+            )
+            distance_lookup = build_distance_lookup(matrix)
+            result = _route_optimizer.optimize_day(
+                hotel_point, activity_points, distance_lookup, seed=day_index
+            )
+
+            day["activities"] = [
+                activities_by_id[p.id] for p in result.ordered_activities
+            ]
+            per_day_results[day_key] = result.as_dict()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(f"route optimization failed for day {day_key}: {exc}")
+            per_day_results[day_key] = {"skipped": True, "reason": str(exc)}
+
+    logger.info("route optimization complete", extra={"num_days": len(per_day_results)})
+    return {
+        "itinerary": itinerary,
+        "itinerary_result": itinerary,
+        "route_optimization": per_day_results,
+    }
+
+
+# def _extract_hotel_point(state: TravelState) -> GeoPoint | None:
+#     hotels = state.get("hotels") or []
+def _extract_hotel_point(state: TravelState) -> GeoPoint | None:
+    hotels = state.get("hotel_results") or state.get("hotels") or []
+    if not hotels:
+        return None
+    hotel = hotels[0]
+    if hotel.get("latitude") is None or hotel.get("longitude") is None:
+        return None
+    return GeoPoint(
+        id=hotel.get("id", "hotel"),
+        name=hotel.get("name", "hotel"),
+        latitude=hotel["latitude"],
+        longitude=hotel["longitude"],
+    )
+
+
+def _extract_activity_points(
+    day: dict[str, Any]
+) -> tuple[list[GeoPoint], dict[str, dict[str, Any]]]:
+    """
+    Returns (geocoded points for this day, id -> original activity dict)
+    so the optimized order can be mapped straight back onto the itinerary's
+    activity dicts without losing any fields the itinerary builder set
+    (cost, category, time slot, etc).
+    """
+    points: list[GeoPoint] = []
+    by_id: dict[str, dict[str, Any]] = {}
+    for i, activity in enumerate(day.get("activities", [])):
+        if activity.get("latitude") is None or activity.get("longitude") is None:
+            continue
+        activity_id = activity.get("id") or activity.get("name") or f"activity_{i}"
+        point = GeoPoint(
+            id=activity_id,
+            name=activity.get("name", activity_id),
+            latitude=activity["latitude"],
+            longitude=activity["longitude"],
+        )
+        points.append(point)
+        by_id[activity_id] = activity
+    return points, by_id
+
+
+# week 10

@@ -34,6 +34,13 @@ class ItineraryActivity(BaseModel):
     location_name: str
 
     estimated_cost_usd: float = Field(default=0.0, ge=0)
+    estimated_duration_hours: float = Field(default=2.0, gt=0)
+
+    # 1-2 = must-see (hard constraint), 3-5 = nice-to-have
+    priority: int = Field(default=3, ge=1, le=5)
+
+    lat: float | None = None
+    lng: float | None = None
 
     travel_time_to_next_minutes: int | None = None
     notes: str | None = None

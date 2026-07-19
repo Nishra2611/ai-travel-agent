@@ -36,11 +36,18 @@ class TravelState(TypedDict, total=False):
     restaurant_results: list[dict[str, Any]]
     weather_results: list[dict[str, Any]]
     budget_summary: dict[str, Any]
+    # Week 10 route optimization support
+    hotels: list[dict[str, Any]]
+    itinerary: dict[str, Any]
+    route_optimization: dict[str, Any]  # week 10
     # ── Week 8 budget optimization ────────────────────────────────────
     budget_allocation: dict[str, Any] | None
     budget_tradeoffs: dict[str, Any] | None
     budget_adherence: dict[str, Any] | None
     # -------------week 8--------------------------------------------------
+    # ── Week 9 geo clustering ──────────────────────────────────────────
+    geo_clusters: dict[str, Any] | None
+    # ── Week 9 itinerary builder ───────────────────────────────────────
     itinerary_result: dict[str, Any] | None  # ← new Week 5
 
     # ── per-tool errors ───────────────────────────────────────────────
