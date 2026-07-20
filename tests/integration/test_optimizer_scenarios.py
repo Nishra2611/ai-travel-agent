@@ -4,13 +4,13 @@ Week 11 — Integration Tests: 10 full trip scenarios.
 Measures: planning time, % must-sees included, walking-distance variance.
 Run: poetry run pytest tests/integration/test_optimizer_scenarios.py -v -s
 """
+
 from __future__ import annotations
 
 import math
 import time
 from datetime import date
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -20,6 +20,7 @@ from ai_travel_agent.route.optimizer import total_route_distance_km
 # ---------------------------------------------------------------------------
 # Shared mock data helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_attractions(city: str, n: int = 12) -> list[dict[str, Any]]:
     """Generate synthetic attractions spread across a city grid."""
@@ -40,24 +41,29 @@ def _make_attractions(city: str, n: int = 12) -> list[dict[str, Any]]:
     attractions = []
     for i in range(n):
         row, col = divmod(i, 4)
-        attractions.append({
-            "id": f"{city.lower()}-{i}",
-            "name": f"{city} Attraction {i + 1}",
-            "category": categories[i % len(categories)],
-            "lat": lat + (row - 1) * 0.01,
-            "lng": lng + (col - 2) * 0.01,
-            "rating": 4.0 + (i % 5) * 0.2,
-            "popularity_hint": i < 3,
-            "estimated_duration_hours": 1.5 + (i % 3) * 0.5,
-            "entry_price_usd": 10.0 + (i % 4) * 5.0,
-            "description": f"A popular {categories[i % len(categories)]} in {city}",
-        })
+        attractions.append(
+            {
+                "id": f"{city.lower()}-{i}",
+                "name": f"{city} Attraction {i + 1}",
+                "category": categories[i % len(categories)],
+                "lat": lat + (row - 1) * 0.01,
+                "lng": lng + (col - 2) * 0.01,
+                "rating": 4.0 + (i % 5) * 0.2,
+                "popularity_hint": i < 3,
+                "estimated_duration_hours": 1.5 + (i % 3) * 0.5,
+                "entry_price_usd": 10.0 + (i % 4) * 5.0,
+                "description": f"A popular {categories[i % len(categories)]} in {city}",
+            }
+        )
     return attractions
 
 
-def _make_weather(days: int, condition: str = "Sunny", rain_chance: float = 0.1) -> list[dict[str, Any]]:
+def _make_weather(
+    days: int, condition: str = "Sunny", rain_chance: float = 0.1
+) -> list[dict[str, Any]]:
     start = date(2025, 8, 1)
     from datetime import timedelta
+
     return [
         {
             "date": (start + timedelta(days=i)).isoformat(),
@@ -77,16 +83,16 @@ def _make_weather(days: int, condition: str = "Sunny", rain_chance: float = 0.1)
 
 SCENARIOS = [
     # (id, city, days, budget, travelers, priority_weight, description)
-    ("s01", "Paris",     5, 3000.0, 2, 0.8, "Paris 5-day moderate budget couple"),
-    ("s02", "Tokyo",     7, 4000.0, 2, 0.9, "Tokyo 7-day high priority couple"),
-    ("s03", "New York",  3, 1800.0, 1, 0.7, "NYC 3-day solo tight budget"),
-    ("s04", "London",    6, 3500.0, 3, 0.8, "London 6-day family"),
-    ("s05", "Bali",      5, 2000.0, 2, 0.5, "Bali 5-day relaxed priority"),
+    ("s01", "Paris", 5, 3000.0, 2, 0.8, "Paris 5-day moderate budget couple"),
+    ("s02", "Tokyo", 7, 4000.0, 2, 0.9, "Tokyo 7-day high priority couple"),
+    ("s03", "New York", 3, 1800.0, 1, 0.7, "NYC 3-day solo tight budget"),
+    ("s04", "London", 6, 3500.0, 3, 0.8, "London 6-day family"),
+    ("s05", "Bali", 5, 2000.0, 2, 0.5, "Bali 5-day relaxed priority"),
     ("s06", "Barcelona", 4, 2500.0, 2, 1.0, "Barcelona 4-day strict must-sees"),
-    ("s07", "Rome",      5, 3000.0, 4, 0.8, "Rome 5-day family history"),
-    ("s08", "Bangkok",   5,  800.0, 1, 0.6, "Bangkok 5-day solo budget"),
-    ("s09", "Sydney",    7, 5000.0, 2, 0.9, "Sydney 7-day luxury"),
-    ("s10", "Dubai",     4, 4000.0, 2, 0.8, "Dubai 4-day luxury couple"),
+    ("s07", "Rome", 5, 3000.0, 4, 0.8, "Rome 5-day family history"),
+    ("s08", "Bangkok", 5, 800.0, 1, 0.6, "Bangkok 5-day solo budget"),
+    ("s09", "Sydney", 7, 5000.0, 2, 0.9, "Sydney 7-day luxury"),
+    ("s10", "Dubai", 4, 4000.0, 2, 0.8, "Dubai 4-day luxury couple"),
 ]
 
 RESULTS: list[dict[str, Any]] = []
@@ -116,11 +122,16 @@ def test_optimizer_scenario(scenario_id, city, days, budget, travelers, pw, desc
 
     # % must-sees included
     all_activities = [act for day in itinerary.days for act in day.activities]
-    must_see_ids = {a["id"] for a in attractions if a.get("rating", 0) >= 4.5 or a.get("popularity_hint")}
+    must_see_ids = {
+        a["id"]
+        for a in attractions
+        if a.get("rating", 0) >= 4.5 or a.get("popularity_hint")
+    }
     scheduled_ids = {act.attraction_id for act in all_activities}
     must_see_pct = (
         len(must_see_ids & scheduled_ids) / len(must_see_ids) * 100
-        if must_see_ids else 100.0
+        if must_see_ids
+        else 100.0
     )
 
     # Walking distance variance
@@ -132,7 +143,8 @@ def test_optimizer_scenario(scenario_id, city, days, budget, travelers, pw, desc
     avg_dist = sum(day_distances) / len(day_distances) if day_distances else 0.0
     variance = (
         math.sqrt(sum((d - avg_dist) ** 2 for d in day_distances) / len(day_distances))
-        if day_distances else 0.0
+        if day_distances
+        else 0.0
     )
 
     result = {
@@ -161,32 +173,36 @@ def test_must_sees_not_dropped_when_nice_to_haves_overflow():
     # Create 20 must-see attractions that can't all fit in 1 day
     attractions = []
     for i in range(20):
-        attractions.append({
-            "id": f"ms-{i}",
-            "name": f"Must-See {i}",
-            "category": "museum",
-            "lat": 48.85 + i * 0.001,
-            "lng": 2.35,
-            "rating": 5.0,
-            "popularity_hint": True,
-            "estimated_duration_hours": 2.0,
-            "entry_price_usd": 5.0,
-            "_priority": 1,  # force must-see
-        })
+        attractions.append(
+            {
+                "id": f"ms-{i}",
+                "name": f"Must-See {i}",
+                "category": "museum",
+                "lat": 48.85 + i * 0.001,
+                "lng": 2.35,
+                "rating": 5.0,
+                "popularity_hint": True,
+                "estimated_duration_hours": 2.0,
+                "entry_price_usd": 5.0,
+                "_priority": 1,  # force must-see
+            }
+        )
     # Add 5 nice-to-haves
     for i in range(5):
-        attractions.append({
-            "id": f"nth-{i}",
-            "name": f"Nice-to-Have {i}",
-            "category": "park",
-            "lat": 48.85,
-            "lng": 2.35 + i * 0.001,
-            "rating": 3.0,
-            "popularity_hint": False,
-            "estimated_duration_hours": 1.0,
-            "entry_price_usd": 0.0,
-            "_priority": 4,
-        })
+        attractions.append(
+            {
+                "id": f"nth-{i}",
+                "name": f"Nice-to-Have {i}",
+                "category": "park",
+                "lat": 48.85,
+                "lng": 2.35 + i * 0.001,
+                "rating": 3.0,
+                "popularity_hint": False,
+                "estimated_duration_hours": 1.0,
+                "entry_price_usd": 0.0,
+                "_priority": 4,
+            }
+        )
 
     prefs = {
         "destination": "Paris",
@@ -202,6 +218,6 @@ def test_must_sees_not_dropped_when_nice_to_haves_overflow():
     nice_scheduled = [a for a in all_acts if a.priority > 2]
 
     # Must-sees should be prioritised over nice-to-haves
-    assert len(must_see_scheduled) >= len(nice_scheduled), (
-        f"Expected more must-sees than nice-to-haves, got {len(must_see_scheduled)} vs {len(nice_scheduled)}"
-    )
+    assert len(must_see_scheduled) >= len(
+        nice_scheduled
+    ), f"Expected more must-sees than nice-to-haves, got {len(must_see_scheduled)} vs {len(nice_scheduled)}"
