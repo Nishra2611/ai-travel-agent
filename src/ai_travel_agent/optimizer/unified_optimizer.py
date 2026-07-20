@@ -207,10 +207,10 @@ class UnifiedOptimizer:
             try:
                 matrix = get_distance_matrix_safe(points, profile="walking")
                 lookup = build_distance_lookup(matrix)
-                total = sum(
+                total = float(sum(
                     lookup(points[i].id, points[i + 1].id)
                     for i in range(len(points) - 1)
-                )
+                ))
                 result[day.day_number] = total
             except Exception as exc:
                 logger.warning("Distance matrix failed for day %d: %s", day.day_number, exc)
@@ -237,8 +237,8 @@ class UnifiedOptimizer:
         mean = sum(values) / len(values)
         if mean == 0:
             return 0.0
-        variance = sum((v - mean) ** 2 for v in values) / len(values)
-        return (variance ** 0.5) / mean
+        variance = float(sum((v - mean) ** 2 for v in values)) / len(values)
+        return float(variance ** 0.5) / mean
 
     @staticmethod
     def _must_see_inclusion_rate(itinerary: Itinerary) -> float:
