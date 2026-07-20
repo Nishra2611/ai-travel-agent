@@ -51,7 +51,6 @@ class ItineraryActivity(BaseModel):
     open_time: time | None = None
     close_time: time | None = None
     locked: bool = False
-    priority: int = Field(default=3, ge=1, le=5)
     latitude: float | None = None
     longitude: float | None = None
 

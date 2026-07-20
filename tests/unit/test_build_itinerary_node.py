@@ -83,6 +83,7 @@ _OPTIMIZER_PATH = "ai_travel_agent.optimizer.itinerary_builder.build_itinerary"
 class TestBuildItineraryNode:
     def test_success_sets_itinerary_result(self) -> None:
         from unittest.mock import MagicMock
+
         from ai_travel_agent.agents.nodes import build_itinerary
 
         mock_itin = MagicMock()
@@ -95,6 +96,7 @@ class TestBuildItineraryNode:
 
     def test_success_adds_assistant_message(self) -> None:
         from unittest.mock import MagicMock
+
         from ai_travel_agent.agents.nodes import build_itinerary
 
         mock_itin = MagicMock()
@@ -116,6 +118,7 @@ class TestBuildItineraryNode:
 
     def test_passes_attractions_and_weather_to_optimizer(self) -> None:
         from unittest.mock import MagicMock
+
         from ai_travel_agent.agents.nodes import build_itinerary
 
         mock_itin = MagicMock()
@@ -144,6 +147,7 @@ class TestBuildItineraryNode:
 
     def test_does_not_set_status(self) -> None:
         from unittest.mock import MagicMock
+
         from ai_travel_agent.agents.nodes import build_itinerary
 
         mock_itin = MagicMock()

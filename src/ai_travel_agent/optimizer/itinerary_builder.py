@@ -4,6 +4,7 @@ Week 11 — Unified Multi-Constraint Itinerary Optimizer.
 Pipeline: cluster POIs → optimize route → weather check → budget validation
 Features: priority-based scheduling, backtracking, cross-day walking balance.
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,7 +14,12 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from ai_travel_agent.geo.clustering import cluster_attractions
-from ai_travel_agent.models.itinerary import DayPlan, Itinerary, ItineraryActivity, TimeSlot
+from ai_travel_agent.models.itinerary import (
+    DayPlan,
+    Itinerary,
+    ItineraryActivity,
+    TimeSlot,
+)
 from ai_travel_agent.route.optimizer import optimize_route, total_route_distance_km
 
 logger = logging.getLogger(__name__)
@@ -58,12 +64,16 @@ def _activity_duration(attraction: dict[str, Any]) -> float:
     return float(attraction.get("estimated_duration_hours") or 2.0)
 
 
-def _make_activity(attraction: dict[str, Any], slot: TimeSlot, priority: int) -> ItineraryActivity:
+def _make_activity(
+    attraction: dict[str, Any], slot: TimeSlot, priority: int
+) -> ItineraryActivity:
     return ItineraryActivity(
         time_slot=slot,
         attraction_id=str(attraction.get("id") or attraction.get("name", "")),
         title=str(attraction.get("name", "Activity")),
-        description=str(attraction.get("description") or attraction.get("category") or ""),
+        description=str(
+            attraction.get("description") or attraction.get("category") or ""
+        ),
         location_name=str(attraction.get("address") or attraction.get("name", "")),
         estimated_cost_usd=_activity_cost(attraction),
         estimated_duration_hours=_activity_duration(attraction),
@@ -158,7 +168,9 @@ def _schedule_day(
                         f"to fit must-see '{attraction['name']}' (freed {freed_dur:.1f}h in {freed_slot})"
                     )
                     if slot_remaining[freed_slot] >= duration:
-                        activities.append(_make_activity(attraction, freed_slot, priority))
+                        activities.append(
+                            _make_activity(attraction, freed_slot, priority)
+                        )
                         slot_remaining[freed_slot] -= duration
                         budget_remaining -= cost
                         return True
@@ -185,14 +197,15 @@ def _rebalance_days(
         return day_buckets
 
     distances = [
-        total_route_distance_km(optimize_route(b)) if b else 0.0
-        for b in day_buckets
+        total_route_distance_km(optimize_route(b)) if b else 0.0 for b in day_buckets
     ]
     avg_dist = sum(distances) / len(distances) if distances else 0.0
     if avg_dist == 0:
         return day_buckets
 
-    variance_ratio = max(abs(d - avg_dist) / avg_dist for d in distances if avg_dist > 0)
+    variance_ratio = max(
+        abs(d - avg_dist) / avg_dist for d in distances if avg_dist > 0
+    )
     if variance_ratio <= BALANCE_VARIANCE_THRESHOLD:
         return day_buckets
 
@@ -206,7 +219,12 @@ def _rebalance_days(
             a = day_buckets[max_day][i]
             if a.get("_priority", 3) > 2:
                 day_buckets[min_day].append(day_buckets[max_day].pop(i))
-                logger.debug("Rebalanced: moved '%s' from day %d to day %d", a.get("name"), max_day + 1, min_day + 1)
+                logger.debug(
+                    "Rebalanced: moved '%s' from day %d to day %d",
+                    a.get("name"),
+                    max_day + 1,
+                    min_day + 1,
+                )
                 break
 
     return day_buckets
@@ -313,7 +331,12 @@ def build_itinerary(
         logger.info("Backtrack events:\n%s", "\n".join(backtrack_log))
 
     elapsed = time.perf_counter() - t0
-    logger.info("build_itinerary completed in %.3fs for %d-day trip to %s", elapsed, duration_days, destination)
+    logger.info(
+        "build_itinerary completed in %.3fs for %d-day trip to %s",
+        elapsed,
+        duration_days,
+        destination,
+    )
 
     return Itinerary(
         id=str(uuid.uuid4()),
