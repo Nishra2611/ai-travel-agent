@@ -16,16 +16,17 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import date
 from typing import Any
 
-from ai_travel_agent.geo.distance_matrix_client import GeoPoint, get_distance_matrix_safe
-from ai_travel_agent.models.itinerary import DayPlan, Itinerary, ItineraryActivity
+from ai_travel_agent.geo.distance_matrix_client import (
+    GeoPoint,
+    get_distance_matrix_safe,
+)
+from ai_travel_agent.models.itinerary import DayPlan, Itinerary, WeatherForecast
 from ai_travel_agent.route.route_optimizer import _RouteOptimizer, build_distance_lookup
 from ai_travel_agent.services.conflict_detector import ConflictDetector, ConflictType
 from ai_travel_agent.services.conflict_resolver import ConflictResolver
 from ai_travel_agent.services.weather_scheduler import WeatherScheduler
-from ai_travel_agent.models.itinerary import WeatherForecast
 
 logger = logging.getLogger(__name__)
 
