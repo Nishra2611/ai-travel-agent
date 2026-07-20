@@ -3,19 +3,22 @@ Week 12 — LLM-as-Judge Evaluator.
 
 Calls Claude with itinerary + trip request + rubric, returns structured JSON scores.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
 import time
-from typing import Any
+from typing import Any, cast
 
 from ai_travel_agent.evaluation.rubric import DIMENSIONS, RUBRIC_TEXT
 
 logger = logging.getLogger(__name__)
 
-_FALLBACK_SCORES = {dim: {"score": 3, "justification": "evaluation unavailable"} for dim in DIMENSIONS}
+_FALLBACK_SCORES = {
+    dim: {"score": 3, "justification": "evaluation unavailable"} for dim in DIMENSIONS
+}
 
 
 # Error message substrings that indicate a permanent (non-retryable) API failure
@@ -51,24 +54,29 @@ def _call_anthropic(itinerary_text: str, trip_request: str) -> dict[str, Any] | 
                 system=RUBRIC_TEXT,
                 messages=[{"role": "user", "content": user_msg}],
             )
-            raw = response.content[0].text.strip()
+            raw = response.content[0].text.strip()  # type: ignore[union-attr]
             if raw.startswith("```"):
                 raw = raw.split("```")[1]
                 if raw.startswith("json"):
                     raw = raw[4:]
-            return json.loads(raw)
+            return cast(dict[str, Any], json.loads(raw))
         except json.JSONDecodeError as exc:
-            logger.warning("Judge returned malformed JSON (attempt %d): %s", attempt + 1, exc)
+            logger.warning(
+                "Judge returned malformed JSON (attempt %d): %s", attempt + 1, exc
+            )
             if attempt == 2:
                 return _FALLBACK_SCORES
         except Exception as exc:
             if _is_permanent_error(exc):
-                logger.warning("Anthropic permanently unavailable (%s), falling back to Ollama", exc)
+                logger.warning(
+                    "Anthropic permanently unavailable (%s), falling back to Ollama",
+                    exc,
+                )
                 return None  # signal caller to use Ollama
             logger.warning("Judge API error (attempt %d): %s", attempt + 1, exc)
             if attempt == 2:
                 return _FALLBACK_SCORES
-            time.sleep(2 ** attempt)
+            time.sleep(2**attempt)
 
     return _FALLBACK_SCORES
 
@@ -98,7 +106,7 @@ def _call_ollama(itinerary_text: str, trip_request: str) -> dict[str, Any] | Non
             start = raw.find("{")
             end = raw.rfind("}") + 1
             if start >= 0 and end > start:
-                return json.loads(raw[start:end])
+                return cast(dict[str, Any], json.loads(raw[start:end]))
             return None
         except (httpx.ConnectError, httpx.TimeoutException):
             logger.warning("Ollama not reachable — using rule-based scorer")
@@ -130,13 +138,23 @@ def _rule_based_scores(itinerary: dict[str, Any], trip_request: str) -> dict[str
     # budget_accuracy: how close is cost to budget
     if budget > 0:
         ratio = abs(total_cost - budget) / budget
-        budget_accuracy = 5 if ratio <= 0.05 else 4 if ratio <= 0.10 else 3 if ratio <= 0.20 else 2 if ratio <= 0.50 else 1
+        budget_accuracy = (
+            5
+            if ratio <= 0.05
+            else (
+                4
+                if ratio <= 0.10
+                else 3 if ratio <= 0.20 else 2 if ratio <= 0.50 else 1
+            )
+        )
     else:
         budget_accuracy = 3
 
     # geo_efficiency: proxy — activities per day (more = better clustering)
     avg_acts = len(all_acts) / num_days if num_days else 0
-    geo_efficiency = 5 if avg_acts >= 3 else 4 if avg_acts >= 2 else 3 if avg_acts >= 1 else 2
+    geo_efficiency = (
+        5 if avg_acts >= 3 else 4 if avg_acts >= 2 else 3 if avg_acts >= 1 else 2
+    )
 
     # weather_match: check if any outdoor activities on rainy days
     rainy_outdoor = 0
@@ -146,12 +164,16 @@ def _rule_based_scores(itinerary: dict[str, Any], trip_request: str) -> dict[str
         if is_rainy:
             for a in d.get("activities", []):
                 cat = str(a.get("description", "") + a.get("title", "")).lower()
-                if any(o in cat for o in ("park", "garden", "beach", "hike", "outdoor")):
+                if any(
+                    o in cat for o in ("park", "garden", "beach", "hike", "outdoor")
+                ):
                     rainy_outdoor += 1
     weather_match = max(1, 5 - rainy_outdoor)
 
     # completeness: avg activities per day
-    completeness = 5 if avg_acts >= 3 else 4 if avg_acts >= 2 else 3 if avg_acts >= 1 else 2
+    completeness = (
+        5 if avg_acts >= 3 else 4 if avg_acts >= 2 else 3 if avg_acts >= 1 else 2
+    )
 
     # priority_adherence: % of priority 1-2 activities scheduled
     must_see_acts = [a for a in all_acts if a.get("priority", 3) <= 2]
@@ -162,35 +184,77 @@ def _rule_based_scores(itinerary: dict[str, Any], trip_request: str) -> dict[str
         counts = [len(d.get("activities", [])) for d in days]
         avg_c = sum(counts) / len(counts)
         variance = max(abs(c - avg_c) for c in counts) / (avg_c + 1e-9)
-        walking_balance = 5 if variance <= 0.2 else 4 if variance <= 0.35 else 3 if variance <= 0.5 else 2
+        walking_balance = (
+            5
+            if variance <= 0.2
+            else 4 if variance <= 0.35 else 3 if variance <= 0.5 else 2
+        )
     else:
         walking_balance = 4
 
     # time_realism: check for default 2h durations (sign of no real data)
-    default_dur = sum(1 for a in all_acts if a.get("estimated_duration_hours", 2.0) == 2.0)
+    default_dur = sum(
+        1 for a in all_acts if a.get("estimated_duration_hours", 2.0) == 2.0
+    )
     time_realism = 3 if default_dur == len(all_acts) and all_acts else 4
 
     # activity_diversity: unique categories
-    categories = {str(a.get("description", "")).split()[0] for a in all_acts if a.get("description")}
+    categories = {
+        str(a.get("description", "")).split()[0]
+        for a in all_acts
+        if a.get("description")
+    }
     activity_diversity = min(5, max(2, len(categories)))
 
     # preference_match: keyword overlap between request and activity titles
     req_words = set(trip_request.lower().split())
     act_words = set(" ".join(a.get("title", "") for a in all_acts).lower().split())
     overlap = len(req_words & act_words)
-    preference_match = 5 if overlap >= 3 else 4 if overlap >= 2 else 3 if overlap >= 1 else 2
+    preference_match = (
+        5 if overlap >= 3 else 4 if overlap >= 2 else 3 if overlap >= 1 else 2
+    )
 
     scores = {
-        "feasibility": {"score": feasibility, "justification": f"{empty_days} empty days out of {num_days}"},
-        "budget_accuracy": {"score": budget_accuracy, "justification": f"cost ${total_cost:.0f} vs budget ${budget:.0f}"},
-        "geo_efficiency": {"score": geo_efficiency, "justification": f"{avg_acts:.1f} activities/day avg"},
-        "weather_match": {"score": weather_match, "justification": f"{rainy_outdoor} outdoor activities on rainy days"},
-        "completeness": {"score": completeness, "justification": f"{len(all_acts)} total activities across {num_days} days"},
-        "priority_adherence": {"score": priority_adherence, "justification": f"{len(must_see_acts)} must-see activities scheduled"},
-        "walking_balance": {"score": walking_balance, "justification": "based on activity count variance per day"},
-        "time_realism": {"score": time_realism, "justification": f"{default_dur}/{len(all_acts)} activities use default 2h duration"},
-        "activity_diversity": {"score": activity_diversity, "justification": f"{len(categories)} distinct activity categories"},
-        "preference_match": {"score": preference_match, "justification": f"{overlap} keyword matches between request and activities"},
+        "feasibility": {
+            "score": feasibility,
+            "justification": f"{empty_days} empty days out of {num_days}",
+        },
+        "budget_accuracy": {
+            "score": budget_accuracy,
+            "justification": f"cost ${total_cost:.0f} vs budget ${budget:.0f}",
+        },
+        "geo_efficiency": {
+            "score": geo_efficiency,
+            "justification": f"{avg_acts:.1f} activities/day avg",
+        },
+        "weather_match": {
+            "score": weather_match,
+            "justification": f"{rainy_outdoor} outdoor activities on rainy days",
+        },
+        "completeness": {
+            "score": completeness,
+            "justification": f"{len(all_acts)} total activities across {num_days} days",
+        },
+        "priority_adherence": {
+            "score": priority_adherence,
+            "justification": f"{len(must_see_acts)} must-see activities scheduled",
+        },
+        "walking_balance": {
+            "score": walking_balance,
+            "justification": "based on activity count variance per day",
+        },
+        "time_realism": {
+            "score": time_realism,
+            "justification": f"{default_dur}/{len(all_acts)} activities use default 2h duration",
+        },
+        "activity_diversity": {
+            "score": activity_diversity,
+            "justification": f"{len(categories)} distinct activity categories",
+        },
+        "preference_match": {
+            "score": preference_match,
+            "justification": f"{overlap} keyword matches between request and activities",
+        },
     }
     return scores
 
@@ -205,7 +269,9 @@ def _itinerary_to_text(itinerary: dict[str, Any]) -> str:
         "",
     ]
     for day in itinerary.get("days", []):
-        lines.append(f"Day {day.get('day_number')}: {day.get('date')} — {day.get('weather_forecast', '')}")
+        lines.append(
+            f"Day {day.get('day_number')}: {day.get('date')} — {day.get('weather_forecast', '')}"
+        )
         for act in day.get("activities", []):
             lines.append(
                 f"  [{act.get('time_slot')}] {act.get('title')} "
