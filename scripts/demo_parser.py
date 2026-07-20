@@ -14,6 +14,7 @@
 scripts/demo_parser.py — verify PreferenceParserTool with Ollama.
 Run: poetry run python scripts/demo_parser.py
 """
+
 from dotenv import load_dotenv
 
 from ai_travel_agent.parsers.preference_parser import PreferenceParserTool

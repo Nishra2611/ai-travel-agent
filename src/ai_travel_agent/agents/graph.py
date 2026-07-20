@@ -11,8 +11,8 @@ Graph topology:
   [supervisor_router]
     ↓ "search"
   search_flights  ──┐
-  search_hotels   ──┤  parallel fan-out
-  find_attractions──┤  (LangGraph runs these concurrently)
+  search_hotels   ──┤  sequential chain
+  find_attractions──┤
   find_restaurants──┤
   check_weather   ──┘
     ↓ all complete → status="budget"
@@ -34,15 +34,6 @@ Usage:
         {"raw_input": "Paris 5 days $3000", "status": "parse", "messages": []},
         config={"configurable": {"thread_id": "session-abc"}},
     )
-
-New pipeline:
-  parse_preferences
-    → search_flights → search_hotels → find_attractions
-    → find_restaurants → check_weather
-    → track_budget
-    → build_itinerary     ← NEW Week 5
-    → assemble_output
-    → END
 """
 
 from __future__ import annotations
@@ -56,12 +47,14 @@ from langgraph.graph import END, START, StateGraph
 from ai_travel_agent.agents.nodes import (
     allocate_budget,
     assemble_output,
+    build_geo_clusters,
     build_itinerary,
     check_weather,
     evaluate_budget,
     find_attractions,
     find_restaurants,
     handle_error,
+    optimize_routes,
     parse_preferences,
     search_flights,
     search_hotels,
@@ -86,21 +79,22 @@ def _make_checkpointer(db_path: str) -> SqliteSaver:
 def build_graph(db_path: str = _DB_PATH) -> Any:
     builder = StateGraph(TravelState)
 
-    # ── nodes ──────────────────────────────────────────────────────────
     builder.add_node("parse_preferences", parse_preferences)
-    builder.add_node("allocate_budget", allocate_budget)  # week 8
+    builder.add_node("allocate_budget", allocate_budget)
     builder.add_node("search_flights", search_flights)
     builder.add_node("search_hotels", search_hotels)
     builder.add_node("find_attractions", find_attractions)
     builder.add_node("find_restaurants", find_restaurants)
     builder.add_node("check_weather", check_weather)
     builder.add_node("track_budget", track_budget)
-    builder.add_node("build_itinerary", build_itinerary)  # ← new
-    builder.add_node("evaluate_budget", evaluate_budget)  # week 8
+    builder.add_node("build_geo_clusters", build_geo_clusters)
+    builder.add_node("build_itinerary", build_itinerary)
+    builder.add_node("evaluate_budget", evaluate_budget)
+    builder.add_node("optimize_routes", optimize_routes)
     builder.add_node("assemble_output", assemble_output)
     builder.add_node("handle_error", handle_error)
 
-    # ── entry ──────────────────────────────────────────────────────────
+    # entry
     builder.add_conditional_edges(
         START,
         supervisor_router,
@@ -111,38 +105,33 @@ def build_graph(db_path: str = _DB_PATH) -> Any:
         },
     )
 
-    # ── parse → search ─────────────────────────────────────────────────
+    # parse → allocate_budget → search chain
     builder.add_conditional_edges(
         "parse_preferences",
         supervisor_router,
-        # {"search_flights": "search_flights", "handle_error": "handle_error"},
-        {"search_flights": "allocate_budget", "handle_error": "handle_error"},  # week 8
+        {"search_flights": "allocate_budget", "handle_error": "handle_error"},
     )
-
-    # ── sequential search chain ────────────────────────────────────────
+    builder.add_edge("allocate_budget", "search_flights")
     builder.add_edge("search_flights", "search_hotels")
     builder.add_edge("search_hotels", "find_attractions")
     builder.add_edge("find_attractions", "find_restaurants")
     builder.add_edge("find_restaurants", "check_weather")
-    builder.add_edge("allocate_budget", "search_flights")  # week 8
 
-    # ── search → budget → build → assemble ────────────────────────────
+    # search → budget → geo → build → optimize → evaluate → assemble
     builder.add_edge("check_weather", "track_budget")
-    # week 8
-    builder.add_edge("track_budget", "build_itinerary")
-    builder.add_edge("build_itinerary", "evaluate_budget")
+    builder.add_edge("track_budget", "build_geo_clusters")
+    builder.add_edge("build_geo_clusters", "build_itinerary")
+    builder.add_edge("build_itinerary", "optimize_routes")
+    builder.add_edge("optimize_routes", "evaluate_budget")
     builder.add_edge("evaluate_budget", "assemble_output")
 
-    # builder.add_edge("track_budget", "build_itinerary")  # ← new
-    # builder.add_edge("build_itinerary", "assemble_output")  # ← new
-
-    # ── terminal ───────────────────────────────────────────────────────
+    # terminal
     builder.add_edge("assemble_output", END)
     builder.add_edge("handle_error", END)
 
     checkpointer = _make_checkpointer(db_path)
     compiled = builder.compile(checkpointer=checkpointer)
-    logger.info("Graph compiled — %d nodes (Week 5)", len(builder.nodes))
+    logger.info("Graph compiled — %d nodes", len(builder.nodes))
     return compiled
 
 

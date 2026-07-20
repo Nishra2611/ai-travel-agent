@@ -217,7 +217,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# SQLite databases
+# SQLite databases (runtime state, not source)
 *.db
 *.db-shm
 *.db-wal

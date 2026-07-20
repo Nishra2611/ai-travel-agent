@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Travel Agent - Week 12 Evaluation Report</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 2rem; color: #222; }
+  h1 { color: #1a5276; }
+  h2 { color: #2874a6; border-bottom: 1px solid #aed6f1; padding-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; font-size: 0.85rem; }
+  th, td { border: 1px solid #d5d8dc; padding: 6px 10px; text-align: left; }
+  th { background: #2874a6; color: white; }
+  tr:nth-child(even) { background: #f2f3f4; }
+  .bar { background: #2874a6; height: 14px; border-radius: 3px; min-width: 2px; }
+  .failure { background: #fdf2f8; }
+</style>
+</head>
+<body>
+<h1>AI Travel Agent - Week 12 Evaluation Report</h1>
+<p>Baseline metrics across 25 scenarios | 10 evaluation dimensions</p>
+
+<h2>Average Score per Dimension</h2>
+<table>
+  <tr><th>Dimension</th><th>Score (out of 5)</th><th>Avg</th></tr>
+  <tr><td>feasibility</td><td><div class="bar" style="width:51%"></div></td><td>2.56</td></tr>
+<tr><td>budget_accuracy</td><td><div class="bar" style="width:20%"></div></td><td>1.00</td></tr>
+<tr><td>geo_efficiency</td><td><div class="bar" style="width:56%"></div></td><td>2.80</td></tr>
+<tr><td>weather_match</td><td><div class="bar" style="width:100%"></div></td><td>5.00</td></tr>
+<tr><td>completeness</td><td><div class="bar" style="width:56%"></div></td><td>2.80</td></tr>
+<tr><td>priority_adherence</td><td><div class="bar" style="width:74%"></div></td><td>3.72</td></tr>
+<tr><td>walking_balance</td><td><div class="bar" style="width:63%"></div></td><td>3.16</td></tr>
+<tr><td>time_realism</td><td><div class="bar" style="width:67%"></div></td><td>3.36</td></tr>
+<tr><td>activity_diversity</td><td><div class="bar" style="width:54%"></div></td><td>2.72</td></tr>
+<tr><td>preference_match</td><td><div class="bar" style="width:45%"></div></td><td>2.24</td></tr>
+</table>
+
+<h2>Average Score by Trip Category</h2>
+<table>
+  <tr><th>Dimension</th><th>beach</th><th>city</th><th>adventure</th><th>family</th><th>solo</th><th>honeymoon</th></tr>
+  <tr><td>feasibility</td><td>3.50</td><td>2.50</td><td>2.75</td><td>3.50</td><td>2.00</td><td>1.40</td></tr>
+<tr><td>budget_accuracy</td><td>1.00</td><td>1.00</td><td>1.00</td><td>1.00</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>geo_efficiency</td><td>3.25</td><td>3.00</td><td>2.50</td><td>3.25</td><td>2.50</td><td>2.40</td></tr>
+<tr><td>weather_match</td><td>5.00</td><td>5.00</td><td>5.00</td><td>5.00</td><td>5.00</td><td>5.00</td></tr>
+<tr><td>completeness</td><td>3.25</td><td>3.00</td><td>2.50</td><td>3.25</td><td>2.50</td><td>2.40</td></tr>
+<tr><td>priority_adherence</td><td>3.50</td><td>3.50</td><td>3.50</td><td>3.00</td><td>4.50</td><td>4.20</td></tr>
+<tr><td>walking_balance</td><td>2.75</td><td>3.00</td><td>2.75</td><td>2.25</td><td>4.25</td><td>3.80</td></tr>
+<tr><td>time_realism</td><td>3.25</td><td>3.25</td><td>3.25</td><td>3.00</td><td>3.75</td><td>3.60</td></tr>
+<tr><td>activity_diversity</td><td>3.00</td><td>3.00</td><td>2.25</td><td>3.75</td><td>2.25</td><td>2.20</td></tr>
+<tr><td>preference_match</td><td>2.25</td><td>2.25</td><td>2.25</td><td>2.50</td><td>2.25</td><td>2.00</td></tr>
+</table>
+
+<h2>Top 5 Failure Modes</h2>
+<table class="failure">
+  <tr><th>#</th><th>Dimension</th><th>Avg Score</th><th>Improvement Task</th></tr>
+  <tr><td>1</td><td>budget_accuracy</td><td>1.00</td><td>Improve cost estimation for restaurants and transport; add a post-build budget reconciliation pass that trims activities until within 5% of budget.</td></tr>
+<tr><td>2</td><td>preference_match</td><td>2.24</td><td>Pass activity_types and travel_style from preferences into the cluster-to-day assignment so preferred categories are prioritised in slot selection.</td></tr>
+<tr><td>3</td><td>feasibility</td><td>2.56</td><td>Tighten opening-hours validation in ItineraryBuilder; add a pre-flight check that rejects activities outside their open window before scheduling.</td></tr>
+<tr><td>4</td><td>activity_diversity</td><td>2.72</td><td>Add a diversity constraint to _pick_from_pool: no more than 2 activities of the same category per day.</td></tr>
+<tr><td>5</td><td>geo_efficiency</td><td>2.80</td><td>Strengthen cluster-to-day assignment so build_itinerary always picks activities from the same DBSCAN cluster for a given day.</td></tr>
+</table>
+
+<h2>All Scenario Results</h2>
+<table>
+  <tr>
+    <th>ID</th><th>Category</th><th>Destination</th><th>Days</th><th>Budget</th>
+    <th>Plan ms</th>
+    <th>feasib</th><th>budget</th><th>geo_ef</th><th>weathe</th><th>comple</th><th>priori</th><th>walkin</th><th>time_r</th><th>activi</th><th>prefer</th>
+  </tr>
+  <tr><td>beach_01</td><td>beach</td><td>Bali</td><td>5</td><td>$2000</td><td>22958.4</td><td>5</td><td>1</td><td>4</td><td>5</td><td>4</td><td>3</td><td>2</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>beach_02</td><td>beach</td><td>Maldives</td><td>4</td><td>$3500</td><td>21248.0</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>beach_03</td><td>beach</td><td>Phuket</td><td>7</td><td>$1500</td><td>30760.4</td><td>3</td><td>1</td><td>3</td><td>5</td><td>3</td><td>3</td><td>2</td><td>3</td><td>5</td><td>2</td></tr>
+<tr><td>beach_04</td><td>beach</td><td>Cancun</td><td>5</td><td>$2500</td><td>27090.0</td><td>5</td><td>1</td><td>4</td><td>5</td><td>4</td><td>3</td><td>2</td><td>3</td><td>2</td><td>2</td></tr>
+<tr><td>city_01</td><td>city</td><td>Paris</td><td>5</td><td>$3000</td><td>22668.0</td><td>3</td><td>1</td><td>3</td><td>5</td><td>3</td><td>3</td><td>2</td><td>3</td><td>5</td><td>3</td></tr>
+<tr><td>city_02</td><td>city</td><td>Tokyo</td><td>7</td><td>$4000</td><td>28368.1</td><td>1</td><td>1</td><td>3</td><td>5</td><td>3</td><td>3</td><td>2</td><td>3</td><td>3</td><td>2</td></tr>
+<tr><td>city_03</td><td>city</td><td>New York</td><td>3</td><td>$1800</td><td>18515.3</td><td>5</td><td>1</td><td>4</td><td>5</td><td>4</td><td>3</td><td>3</td><td>3</td><td>2</td><td>2</td></tr>
+<tr><td>city_04</td><td>city</td><td>London</td><td>6</td><td>$3500</td><td>27058.9</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>adventure_01</td><td>adventure</td><td>Kathmandu</td><td>7</td><td>$2000</td><td>32046.2</td><td>4</td><td>1</td><td>2</td><td>5</td><td>2</td><td>3</td><td>2</td><td>3</td><td>2</td><td>2</td></tr>
+<tr><td>adventure_02</td><td>adventure</td><td>San Jose</td><td>5</td><td>$2500</td><td>10330.8</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>adventure_03</td><td>adventure</td><td>Queenstown</td><td>4</td><td>$3000</td><td>33677.0</td><td>5</td><td>1</td><td>4</td><td>5</td><td>4</td><td>3</td><td>2</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>adventure_04</td><td>adventure</td><td>Punta Arenas</td><td>7</td><td>$4000</td><td>18755.5</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>3</td><td>2</td><td>3</td><td>2</td><td>2</td></tr>
+<tr><td>family_01</td><td>family</td><td>Orlando</td><td>5</td><td>$5000</td><td>27445.7</td><td>5</td><td>1</td><td>4</td><td>5</td><td>4</td><td>3</td><td>3</td><td>3</td><td>5</td><td>3</td></tr>
+<tr><td>family_02</td><td>family</td><td>Barcelona</td><td>6</td><td>$4000</td><td>27320.9</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>3</td><td>2</td><td>3</td><td>2</td><td>2</td></tr>
+<tr><td>family_03</td><td>family</td><td>Singapore</td><td>4</td><td>$3500</td><td>24721.8</td><td>5</td><td>1</td><td>4</td><td>5</td><td>4</td><td>3</td><td>2</td><td>3</td><td>4</td><td>3</td></tr>
+<tr><td>family_04</td><td>family</td><td>Rome</td><td>5</td><td>$3000</td><td>24104.6</td><td>3</td><td>1</td><td>3</td><td>5</td><td>3</td><td>3</td><td>2</td><td>3</td><td>4</td><td>2</td></tr>
+<tr><td>solo_01</td><td>solo</td><td>Amsterdam</td><td>3</td><td>$1200</td><td>39725.8</td><td>5</td><td>1</td><td>4</td><td>5</td><td>4</td><td>3</td><td>2</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>solo_02</td><td>solo</td><td>Lisbon</td><td>4</td><td>$1000</td><td>43.9</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>solo_03</td><td>solo</td><td>Bangkok</td><td>5</td><td>$800</td><td>83.1</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>solo_04</td><td>solo</td><td>Kyoto</td><td>4</td><td>$1500</td><td>71.8</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>honeymoon_01</td><td>honeymoon</td><td>Santorini</td><td>5</td><td>$5000</td><td>12143.9</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>honeymoon_02</td><td>honeymoon</td><td>Venice</td><td>4</td><td>$4000</td><td>808.6</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>honeymoon_03</td><td>honeymoon</td><td>Bora Bora</td><td>6</td><td>$8000</td><td>854.4</td><td>1</td><td>1</td><td>2</td><td>5</td><td>2</td><td>5</td><td>5</td><td>4</td><td>2</td><td>2</td></tr>
+<tr><td>honeymoon_04</td><td>honeymoon</td><td>Prague</td><td>5</td><td>$3000</td><td>24098.3</td><td>3</td><td>1</td><td>3</td><td>5</td><td>3</td><td>3</td><td>2</td><td>3</td><td>3</td><td>2</td></tr>
+<tr><td>honeymoon_05</td><td>honeymoon</td><td>Naples</td><td>7</td><td>$6000</td><td>29830.7</td><td>1</td><td>1</td><td>3</td><td>5</td><td>3</td><td>3</td><td>2</td><td>3</td><td>2</td><td>2</td></tr>
+</table>
+</body>
+</html>
