@@ -23,12 +23,19 @@ Drop this file at: ai_travel_agent/maps/thumbnail_renderer.py
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypedDict
 
 from ai_travel_agent.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-DEFAULT_VIEWPORT = {"width": 1000, "height": 700}
+
+class ViewportSize(TypedDict):
+    width: int
+    height: int
+
+
+DEFAULT_VIEWPORT: ViewportSize = {"width": 1000, "height": 700}
 RENDER_TIMEOUT_MS = 15_000
 # Leaflet's tile layer loads asynchronously after the page navigates; a
 # fixed wait is crude but reliable at this scale (one map, once) --
@@ -40,7 +47,7 @@ TILE_LOAD_WAIT_MS = 2_500
 def render_thumbnail_safe(
     html_path: str | Path,
     output_png_path: str | Path,
-    viewport: dict | None = None,
+    viewport: ViewportSize | None = None,
 ) -> Path | None:
     """
     Screenshots a local HTML file to PNG. Returns the output path on
@@ -69,7 +76,7 @@ def render_thumbnail_safe(
         return None
 
 
-def _render(html_path: Path, output_png_path: Path, viewport: dict) -> Path:
+def _render(html_path: Path, output_png_path: Path, viewport: ViewportSize) -> Path:
     from playwright.sync_api import sync_playwright
 
     output_png_path.parent.mkdir(parents=True, exist_ok=True)

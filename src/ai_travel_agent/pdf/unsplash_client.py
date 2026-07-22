@@ -65,7 +65,7 @@ def get_destination_photo_safe(query: str, output_path: str | Path) -> Path | No
 def _search(query: str, api_key: str) -> str | None:
     response = requests.get(
         UNSPLASH_SEARCH_URL,
-        params={"query": query, "per_page": 1, "orientation": "landscape"},
+        params={"query": query, "per_page": "1", "orientation": "landscape"},
         headers={"Authorization": f"Client-ID {api_key}"},
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
@@ -74,7 +74,8 @@ def _search(query: str, api_key: str) -> str | None:
     results = data.get("results") or []
     if not results:
         return None
-    return results[0]["urls"]["regular"]
+    url = results[0]["urls"]["regular"]
+    return str(url) if url else None
 
 
 def _download(image_url: str, output_path: Path) -> Path:

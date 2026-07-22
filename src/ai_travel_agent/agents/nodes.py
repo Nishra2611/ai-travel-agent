@@ -787,7 +787,7 @@ def _extract_activity_points(
 
 
 # week 13
-def generate_map(state: TravelState) -> dict:
+def generate_map(state: TravelState) -> dict[str, Any]:
     """
     Builds the interactive HTML map from the final itinerary + hotel, then
     rasterizes a PNG thumbnail for the Week 14 PDF to embed. Runs after
@@ -795,7 +795,8 @@ def generate_map(state: TravelState) -> dict:
     one) and never raises -- a mapping failure shouldn't cost the person
     their itinerary JSON/PDF.
     """
-    hotel_dict = (state.get("hotels") or [None])[0]
+    hotels = state.get("hotels") or []
+    hotel_dict = hotels[0] if hotels else None
     itinerary = state.get("itinerary")
 
     if not hotel_dict or not itinerary or not itinerary.get("days"):
@@ -843,7 +844,7 @@ def generate_map(state: TravelState) -> dict:
         return {"map_output": None}
 
 
-def _to_map_activities(day: dict) -> list[MapActivity]:
+def _to_map_activities(day: dict[str, Any]) -> list[MapActivity]:
     activities = []
     for i, activity in enumerate(day.get("activities", [])):
         if activity.get("latitude") is None or activity.get("longitude") is None:
@@ -866,7 +867,7 @@ def _to_map_activities(day: dict) -> list[MapActivity]:
 
 
 # week 14
-def generate_pdf(state: TravelState) -> dict:
+def generate_pdf(state: TravelState) -> dict[str, Any]:
     """
     Builds the PDFContext from state and renders the final PDF itinerary.
     Never raises: a PDF failure (WeasyPrint missing/system libs, malformed
@@ -966,7 +967,10 @@ def _build_pdf_context(state: TravelState) -> PDFContext:
 
 
 def _build_executive_summary(
-    destination: str, num_days: int, allocation: dict, adherence: dict
+    destination: str,
+    num_days: int,
+    allocation: dict[str, Any],
+    adherence: dict[str, Any],
 ) -> str:
     profile = allocation.get("profile", "trip")
     summary = f"A {num_days}-day {profile.replace('_', '-')} trip to {destination}."

@@ -23,6 +23,7 @@ Drop this file at: ai_travel_agent/pdf/templates.py
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from jinja2 import Environment
 
@@ -157,7 +158,7 @@ class PDFContext:
     def num_days(self) -> int:
         return len(self.days)
 
-    def as_template_dict(self) -> dict:
+    def as_template_dict(self) -> dict[str, Any]:
         return {
             "css": _BASE_CSS,
             "destination": self.destination,
