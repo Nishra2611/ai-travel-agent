@@ -30,7 +30,15 @@ export function usePlanStream() {
           addMsg({ role: "progress", text: data.message, node: data.node });
         } else if (data.type === "done") {
           setSessionId(data.session_id);
-          addMsg({ role: "assistant", text: "Here's your itinerary!", itinerary: data.itinerary });
+          addMsg({
+            role: "assistant",
+            itinerary: data.itinerary || {},
+            destination: data.destination || destination,
+            flights: data.flights || [],
+            hotels: data.hotels || [],
+            weather: data.weather || [],
+            budget: data.budget || {},
+          });
           setStreaming(false);
         } else if (data.type === "error") {
           addMsg({ role: "error", text: data.message });

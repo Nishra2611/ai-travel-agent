@@ -197,14 +197,49 @@ kbd {
   color: var(--text); text-align: left;
 }
 .day-card__header:hover { background: var(--border); }
+.day-card__count { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
 .day-card__body {
   padding: 8px 14px 12px 36px;
   list-style: disc; display: flex; flex-direction: column; gap: 4px;
   font-size: 0.87rem; color: var(--text);
 }
+.day-card__item { line-height: 1.5; }
 
 /* ── map ──────────────────────────────────────────────────────────────────── */
 .trip-map { margin-top: 14px; border-radius: var(--radius); overflow: hidden; }
+
+/* ── result sections (flights, hotels, weather, budget) ──────────────────── */
+.result-section { margin-top: 16px; }
+.result-section__title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.result-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  margin-bottom: 6px; font-size: 0.85rem;
+}
+.result-card__name { font-weight: 600; flex: 1; color: var(--text); }
+.result-card__detail { color: var(--text-muted); font-size: 0.8rem; }
+.result-card__price { font-weight: 700; color: var(--accent); margin-left: auto; white-space: nowrap; }
+
+.weather-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.weather-card {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 12px; border-radius: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  font-size: 0.8rem; min-width: 70px; text-align: center;
+}
+.weather-card__date { font-weight: 600; color: var(--text); }
+.weather-card__desc { color: var(--text-muted); font-size: 0.75rem; }
+.weather-card__temp { font-weight: 700; color: var(--accent); }
+
+.budget-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.budget-pill {
+  padding: 5px 12px; border-radius: 20px;
+  background: var(--surface2); border: 1px solid var(--border);
+  font-size: 0.82rem; font-weight: 600; color: var(--text);
+}
+.budget-pill--green { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
+[data-theme="dark"] .budget-pill--green { color: #86efac; border-color: #166534; background: #052e16; }
 
 /* ── refinement chips ─────────────────────────────────────────────────────── */
 .refinement-chips {

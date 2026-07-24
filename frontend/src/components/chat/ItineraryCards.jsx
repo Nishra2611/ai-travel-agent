@@ -2,22 +2,21 @@ import { useState } from "react";
 
 function DayCard({ day, activities }) {
   const [open, setOpen] = useState(true);
-  const items = Array.isArray(activities)
-    ? activities
-    : typeof activities === "object"
-    ? Object.entries(activities).map(([k, v]) => `${k}: ${v}`)
-    : [String(activities)];
+  const items = Array.isArray(activities) ? activities : [String(activities)];
 
   return (
     <div className="day-card">
       <button className="day-card__header" onClick={() => setOpen((o) => !o)}>
-        <span>{open ? "▼" : "▶"}</span>
-        <span>{day.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+        <span className="day-card__arrow">{open ? "▼" : "▶"}</span>
+        <span>{day}</span>
+        <span className="day-card__count">{items.length} activities</span>
       </button>
       {open && (
         <ul className="day-card__body">
           {items.map((item, i) => (
-            <li key={i}>{typeof item === "object" ? JSON.stringify(item) : item}</li>
+            <li key={i} className="day-card__item">
+              {typeof item === "object" ? JSON.stringify(item) : item}
+            </li>
           ))}
         </ul>
       )}

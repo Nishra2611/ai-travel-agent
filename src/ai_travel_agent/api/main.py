@@ -305,19 +305,45 @@ async def ws_plan(websocket: WebSocket) -> None:
             "assemble_output": "Assembling final plan...",
         }
 
-        final_itinerary: dict[str, Any] = {}
+        final_output: dict[str, Any] = {}
 
         async for chunk in _stream_graph(raw_input, session_id):
             for node_name, node_output in chunk.items():
                 label = node_labels.get(node_name, f"Running {node_name}...")
                 await websocket.send_json({"type": "progress", "node": node_name, "message": label})
-                await asyncio.sleep(0)  # yield to event loop
+                await asyncio.sleep(0)
 
                 if node_name == "assemble_output" and isinstance(node_output, dict):
-                    final_itinerary = (node_output.get("final_output") or {}).get("itinerary") or {}
+                    final_output = node_output.get("final_output") or {}
 
-        _sessions[session_id]["itinerary"] = final_itinerary
-        await websocket.send_json({"type": "done", "session_id": session_id, "itinerary": final_itinerary})
+        # Normalize itinerary: convert days list → {"Day 1": [...], "Day 2": [...]}
+        raw_itin = final_output.get("itinerary") or {}
+        normalized: dict[str, Any] = {}
+        if isinstance(raw_itin, dict) and "days" in raw_itin:
+            for day in raw_itin["days"]:
+                day_num = day.get("day_number", 1)
+                activities = day.get("activities", [])
+                normalized[f"Day {day_num}"] = [
+                    f"{a.get('time_slot','')}: {a.get('name','Activity')}"
+                    + (f" (${a.get('cost',0):.0f})" if a.get('cost') else "")
+                    for a in activities
+                ]
+        elif isinstance(raw_itin, dict):
+            normalized = raw_itin
+
+        payload_out = {
+            "type": "done",
+            "session_id": session_id,
+            "itinerary": normalized,
+            "destination": final_output.get("destination", destination),
+            "flights": (final_output.get("flights") or [])[:3],
+            "hotels": (final_output.get("hotels") or [])[:3],
+            "weather": (final_output.get("weather") or [])[:5],
+            "budget": final_output.get("budget") or {},
+        }
+        _sessions[session_id]["itinerary"] = normalized
+        _sessions[session_id]["full_output"] = final_output
+        await websocket.send_json(payload_out)
 
     except WebSocketDisconnect:
         pass
