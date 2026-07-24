@@ -80,6 +80,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
   font-size: 0.78rem; font-weight: 500; transition: background .15s;
 }
 .icon-btn:hover { background: var(--border); }
+.icon-btn--round { border-radius: 50%; padding: 7px; }
 
 /* ── messages ─────────────────────────────────────────────────────────────── */
 .chat-messages {
@@ -95,11 +96,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
   margin: auto;
   text-align: center;
   color: var(--text-muted);
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 40px 20px;
 }
-.chat-empty p:first-child { font-size: 1.5rem; }
-.chat-empty__hint { font-size: 0.9rem; }
-.chat-empty__shortcuts { font-size: 0.78rem; margin-top: 8px; }
+.chat-empty__icon { font-size: 3rem; }
+.chat-empty h2 { font-size: 1.4rem; color: var(--text); font-weight: 700; }
+.chat-empty p { font-size: 0.92rem; max-width: 380px; }
+.chat-empty__examples { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 4px; }
+.example-chip {
+  padding: 8px 16px; border-radius: 20px;
+  border: 1px solid var(--chip-border); background: var(--chip-bg);
+  color: var(--chip-text); font-size: 0.83rem; cursor: pointer;
+  transition: background .15s;
+}
+.example-chip:hover { background: var(--chip-border); }
+.chat-empty__shortcuts { font-size: 0.76rem; margin-top: 4px; color: var(--text-muted); }
 kbd {
   background: var(--surface2); border: 1px solid var(--border);
   border-radius: 4px; padding: 1px 5px; font-size: 0.75rem;
@@ -127,6 +138,8 @@ kbd {
   border-bottom-left-radius: 4px;
   max-width: 95%;
 }
+.bubble__intro { font-weight: 600; margin-bottom: 10px; color: var(--accent); }
+.bubble__empty { color: var(--text-muted); font-size: 0.88rem; }
 .bubble--progress {
   align-self: flex-start;
   background: var(--progress-bg);
@@ -161,17 +174,15 @@ kbd {
   40% { transform: translateY(-6px); }
 }
 
-/* ── progress steps ───────────────────────────────────────────────────────── */
-.progress-steps {
-  display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;
-}
-.progress-step {
+/* ── streaming steps (live inside one bubble) ────────────────────────────── */
+.stream-steps { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.stream-step {
   display: flex; align-items: center; gap: 8px;
-  font-size: 0.82rem; color: var(--text-muted); opacity: .5;
+  font-size: 0.85rem;
 }
-.progress-step.done { opacity: 1; color: var(--progress-text); }
-.progress-step.active { opacity: 1; color: var(--accent); font-weight: 600; }
-.step-icon { width: 16px; text-align: center; }
+.stream-step--done { color: var(--progress-text); }
+.stream-step--active { color: var(--accent); font-weight: 600; }
+.stream-step__icon { width: 16px; text-align: center; font-size: 0.9rem; }
 
 /* ── itinerary cards ──────────────────────────────────────────────────────── */
 .itinerary-cards { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }

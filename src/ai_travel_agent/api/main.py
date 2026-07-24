@@ -125,12 +125,30 @@ def _run_graph(raw_input: str, thread_id: str) -> dict[str, Any]:
 
 
 async def _stream_graph(raw_input: str, thread_id: str) -> AsyncIterator[dict[str, Any]]:
-    """Yield each node's output as it completes via astream."""
-    async for chunk in _graph.astream(
-        {"raw_input": raw_input, "status": "parse", "messages": []},
-        config={"configurable": {"thread_id": thread_id}},
-    ):
-        yield chunk
+    """Yield each node's output as it completes — uses sync .stream() in a thread."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    loop = asyncio.get_event_loop()
+    queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+    def _run_sync() -> None:
+        try:
+            for chunk in _graph.stream(
+                {"raw_input": raw_input, "status": "parse", "messages": []},
+                config={"configurable": {"thread_id": thread_id}},
+            ):
+                loop.call_soon_threadsafe(queue.put_nowait, chunk)
+        finally:
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pool.submit(_run_sync)
+        while True:
+            chunk = await queue.get()
+            if chunk is None:
+                break
+            yield chunk
 
 
 def _background_plan(job_id: str, raw_input: str, thread_id: str) -> None:
