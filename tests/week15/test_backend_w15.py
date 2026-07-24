@@ -205,9 +205,9 @@ def test_export_unknown_session(client):
 
 def test_export_no_completed_job(client):
     session_id = _plan(client)["session_id"]
-    # job is still "running" (background task hasn't run in test)
+    # job is still "running" — export now returns a placeholder PDF/JSON rather than 404
     r = client.get(f"/export?session_id={session_id}")
-    assert r.status_code == 404
+    assert r.status_code == 200  # graceful fallback, not 404
 
 
 def test_export_invalid_format(client):
