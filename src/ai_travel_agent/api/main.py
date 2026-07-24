@@ -40,18 +40,65 @@ from ai_travel_agent.utils.cache import cache
 def _safe_json(obj: Any) -> Any:
     """Recursively convert any non-JSON-serializable values to strings."""
     from datetime import date, datetime
+    from enum import Enum
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
+    if isinstance(obj, Enum):
+        return obj.value
     if isinstance(obj, dict):
         return {k: _safe_json(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [_safe_json(i) for i in obj]
-    try:
-        import json as _json
-        _json.dumps(obj)
+    if isinstance(obj, (int, float, str, bool)) or obj is None:
         return obj
-    except (TypeError, ValueError):
-        return str(obj)
+    return str(obj)
+
+
+def _build_pdf(itinerary: dict[str, Any], title: str = "Trip Itinerary") -> bytes:
+    """Build a PDF from the normalized itinerary dict using fpdf2."""
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # title
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_text_color(79, 70, 229)  # accent purple
+    pdf.cell(0, 12, "AI Travel Planner", ln=True, align="C")
+    pdf.set_font("Helvetica", "", 12)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 8, title, ln=True, align="C")
+    pdf.ln(6)
+
+    # divider
+    pdf.set_draw_color(79, 70, 229)
+    pdf.set_line_width(0.5)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(6)
+
+    if not itinerary:
+        pdf.set_font("Helvetica", "I", 11)
+        pdf.set_text_color(150, 150, 150)
+        pdf.cell(0, 10, "No itinerary data available.", ln=True)
+    else:
+        for day, activities in itinerary.items():
+            # day header
+            pdf.set_font("Helvetica", "B", 13)
+            pdf.set_text_color(30, 30, 30)
+            pdf.set_fill_color(238, 242, 255)
+            pdf.cell(0, 9, str(day), ln=True, fill=True)
+            pdf.ln(1)
+
+            items = activities if isinstance(activities, list) else [str(activities)]
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(60, 60, 60)
+            for item in items:
+                pdf.cell(6)  # indent
+                pdf.multi_cell(0, 7, f"\u2022  {item}")
+            pdf.ln(3)
+
+    return bytes(pdf.output())
 
 
 # ── rate limiter ──────────────────────────────────────────────────────────────
@@ -247,12 +294,13 @@ def export_itinerary(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # find latest completed job for this session
-    itinerary: dict[str, Any] = {}
-    for job in reversed(list(_jobs.values())):
-        if job.get("status") == "completed" and job.get("thread_id") == session_id:
-            itinerary = job.get("result", {})
-            break
+    # find itinerary: prefer session's normalized copy, fall back to job result
+    itinerary: dict[str, Any] = session.get("itinerary") or {}
+    if not itinerary:
+        for job in reversed(list(_jobs.values())):
+            if job.get("status") == "completed" and job.get("thread_id") == session_id:
+                itinerary = job.get("result", {})
+                break
 
     if not itinerary:
         raise HTTPException(status_code=404, detail="No completed itinerary for this session")
@@ -273,14 +321,16 @@ def export_itinerary(
         return Response(content=md, media_type="text/markdown",
                         headers={"Content-Disposition": "attachment; filename=itinerary.md"})
 
-    # pdf — delegate to Week 14 pdf generator if available
+    # pdf — build with fpdf2 from the normalized itinerary
     try:
-        from ai_travel_agent.pdf.pdf_generator import generate_pdf  # type: ignore
-        pdf_bytes = generate_pdf(itinerary)
-        return Response(content=pdf_bytes, media_type="application/pdf",
-                        headers={"Content-Disposition": "attachment; filename=itinerary.pdf"})
-    except Exception:
-        return JSONResponse(content={"error": "PDF generation unavailable", "itinerary": itinerary})
+        pdf_bytes = _build_pdf(itinerary, session.get("raw_input", "Trip"))
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=itinerary.pdf"},
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {exc}") from exc
 
 
 # ── Week 15: WebSocket /ws/plan ───────────────────────────────────────────────
@@ -324,43 +374,102 @@ async def ws_plan(websocket: WebSocket) -> None:
         }
 
         final_output: dict[str, Any] = {}
+        final_state: dict[str, Any] = {}
 
         async for chunk in _stream_graph(raw_input, session_id):
             for node_name, node_output in chunk.items():
                 label = node_labels.get(node_name, f"Running {node_name}...")
                 await websocket.send_json({"type": "progress", "node": node_name, "message": label})
                 await asyncio.sleep(0)
+                if isinstance(node_output, dict):
+                    final_state.update(node_output)
+                    if node_name == "assemble_output":
+                        final_output = node_output.get("final_output") or {}
 
-                if node_name == "assemble_output" and isinstance(node_output, dict):
-                    final_output = node_output.get("final_output") or {}
+        # build attraction id→name lookup from state
+        attractions = final_state.get("attraction_results") or []
+        attr_map = {a.get("id", ""): a.get("name", "Activity") for a in attractions if a.get("id")}
+        attr_map.update({a.get("name", ""): a.get("name", "Activity") for a in attractions if a.get("name")})
 
-        # Normalize itinerary: convert days list → {"Day 1": [...], "Day 2": [...]}
+        # normalize itinerary days → {"Day 1": ["morning: Name ($cost)", ...]}
         raw_itin = final_output.get("itinerary") or {}
-        normalized: dict[str, Any] = {}
+        normalized: dict[str, list[str]] = {}
         if isinstance(raw_itin, dict) and "days" in raw_itin:
             for day in raw_itin["days"]:
                 day_num = day.get("day_number", 1)
-                activities = day.get("activities", [])
-                normalized[f"Day {day_num}"] = [
-                    f"{a.get('time_slot','')}: {a.get('name','Activity')}"
-                    + (f" (${a.get('cost',0):.0f})" if a.get('cost') else "")
-                    for a in activities
-                ]
+                acts = day.get("activities") or []
+                lines = []
+                for a in acts:
+                    name = a.get("name") or attr_map.get(a.get("attraction_id", ""), "Activity")
+                    slot = a.get("time_slot", "")
+                    slot_str = slot.value if hasattr(slot, "value") else str(slot)
+                    cost = a.get("cost") or 0
+                    cost_str = f" (${cost:.0f}" + ")" if cost else ""
+                    lines.append(f"{slot_str.capitalize()}: {name}{cost_str}")
+                if not lines:
+                    lines = ["Free exploration"]
+                normalized[f"Day {day_num}"] = lines
         elif isinstance(raw_itin, dict):
-            normalized = raw_itin
+            normalized = {k: v if isinstance(v, list) else [str(v)] for k, v in raw_itin.items()}
 
+        # clean flights for display
+        flights_clean = []
+        for f in (final_output.get("flights") or [])[:3]:
+            segs = f.get("segments") or []
+            seg = segs[0] if segs else {}
+            flights_clean.append({
+                "airline": seg.get("airline", "Flight"),
+                "from": seg.get("departure_airport", ""),
+                "to": seg.get("arrival_airport", ""),
+                "price": f.get("total_price_usd", 0),
+                "duration": f.get("total_duration_minutes", 0),
+                "stops": f.get("num_stops", 0),
+            })
+
+        # clean hotels for display
+        hotels_clean = []
+        for h in (final_output.get("hotels") or [])[:3]:
+            hotels_clean.append({
+                "name": h.get("name", "Hotel"),
+                "stars": h.get("star_rating", 0),
+                "rating": h.get("review_score", 0),
+                "price_per_night": h.get("price_per_night_usd", 0),
+                "amenities": (h.get("amenities") or [])[:4],
+            })
+
+        # clean weather
+        weather_clean = []
+        for w in (final_output.get("weather") or [])[:7]:
+            weather_clean.append({
+                "date": str(w.get("date", "")),
+                "condition": w.get("condition", w.get("description", "")),
+                "temp_max": w.get("temp_max", w.get("temperature", "")),
+                "temp_min": w.get("temp_min", ""),
+                "rain": w.get("rain_chance_pct", 0),
+            })
+
+        # budget
+        budget_raw = final_output.get("budget") or {}
+        budget_clean = {
+            "total": budget_raw.get("total_budget"),
+            "spent": budget_raw.get("spent_total", 0),
+            "remaining": budget_raw.get("remaining"),
+            "by_category": budget_raw.get("by_category", {}),
+        }
+
+        dest = final_output.get("destination") or destination
         payload_out = _safe_json({
             "type": "done",
             "session_id": session_id,
+            "destination": dest,
             "itinerary": normalized,
-            "destination": final_output.get("destination", destination),
-            "flights": (final_output.get("flights") or [])[:3],
-            "hotels": (final_output.get("hotels") or [])[:3],
-            "weather": (final_output.get("weather") or [])[:5],
-            "budget": final_output.get("budget") or {},
+            "flights": flights_clean,
+            "hotels": hotels_clean,
+            "weather": weather_clean,
+            "budget": budget_clean,
         })
         _sessions[session_id]["itinerary"] = normalized
-        _sessions[session_id]["full_output"] = final_output
+        _sessions[session_id]["full_output"] = _safe_json(final_output)
         await websocket.send_json(payload_out)
 
     except WebSocketDisconnect:

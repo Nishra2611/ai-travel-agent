@@ -198,14 +198,24 @@ export default function ChatPage() {
   const handleExport = useCallback(async (fmt) => {
     if (!sessionId) return;
     try {
-      const data = await exportItinerary(sessionId, fmt);
-      const isBlob = data instanceof Blob;
-      const blob = isBlob ? data : new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const res = await fetch(`http://localhost:8000/export?session_id=${sessionId}&fmt=${fmt}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Export failed" }));
+        setChatLog((prev) => [...prev, { type: "error", text: err.detail || "Export failed" }]);
+        return;
+      }
+      const blob = await res.blob();
+      // guard: if server returned JSON instead of the expected binary, show error
+      if (fmt === "pdf" && !blob.type.includes("pdf")) {
+        setChatLog((prev) => [...prev, { type: "error", text: "PDF generation failed on the server." }]);
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const ext = fmt === "markdown" ? "md" : fmt;
       Object.assign(document.createElement("a"), { href: url, download: `itinerary.${ext}` }).click();
+      URL.revokeObjectURL(url);
     } catch {
-      setChatLog((prev) => [...prev, { type: "error", text: "Export failed." }]);
+      setChatLog((prev) => [...prev, { type: "error", text: "Export failed — is the backend running?" }]);
     }
   }, [sessionId]);
 
