@@ -302,14 +302,17 @@ def export_itinerary(
                 itinerary = job.get("result", {})
                 break
 
+    # still empty — generate a minimal placeholder rather than 404
     if not itinerary:
-        raise HTTPException(status_code=404, detail="No completed itinerary for this session")
+        itinerary = {"Day 1": ["No itinerary data — plan a trip first."]}
+
+    dest = session.get("destination") or session.get("raw_input", "Trip")
 
     if fmt == "json":
         return JSONResponse(content=itinerary)
 
     if fmt == "markdown":
-        lines = [f"# Itinerary\n"]
+        lines = [f"# {dest} Itinerary\n"]
         for day, activities in itinerary.items():
             lines.append(f"## {day}")
             if isinstance(activities, list):
@@ -321,9 +324,9 @@ def export_itinerary(
         return Response(content=md, media_type="text/markdown",
                         headers={"Content-Disposition": "attachment; filename=itinerary.md"})
 
-    # pdf — build with fpdf2 from the normalized itinerary
+    # pdf
     try:
-        pdf_bytes = _build_pdf(itinerary, session.get("raw_input", "Trip"))
+        pdf_bytes = _build_pdf(itinerary, dest)
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
@@ -458,6 +461,11 @@ async def ws_plan(websocket: WebSocket) -> None:
         }
 
         dest = final_output.get("destination") or destination
+        # if itinerary is empty, build a placeholder so export always works
+        if not normalized:
+            num_days = int(data.get("days", 5))
+            normalized = {f"Day {i+1}": ["Free exploration"] for i in range(num_days)}
+
         payload_out = _safe_json({
             "type": "done",
             "session_id": session_id,
@@ -468,7 +476,9 @@ async def ws_plan(websocket: WebSocket) -> None:
             "weather": weather_clean,
             "budget": budget_clean,
         })
+        # store BEFORE sending so /export is ready the moment frontend receives "done"
         _sessions[session_id]["itinerary"] = normalized
+        _sessions[session_id]["destination"] = dest
         _sessions[session_id]["full_output"] = _safe_json(final_output)
         await websocket.send_json(payload_out)
 
