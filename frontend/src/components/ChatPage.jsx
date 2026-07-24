@@ -55,9 +55,9 @@ function AssistantBubble({ msg }) {
           <h4 className="result-section__title">✈ Flights</h4>
           {msg.flights.map((f, i) => (
             <div key={i} className="result-card">
-              <span className="result-card__name">{f.airline || f.segments?.[0]?.airline || "Flight"}</span>
-              <span className="result-card__detail">{f.segments?.[0]?.departure_airport} → {f.segments?.[0]?.arrival_airport}</span>
-              <span className="result-card__price">${f.total_price_usd?.toFixed(0)}</span>
+              <span className="result-card__name">{f.airline || "Flight"}</span>
+              <span className="result-card__detail">{f.from} → {f.to} · {f.stops === 0 ? "Direct" : `${f.stops} stop`}</span>
+              <span className="result-card__price">${Number(f.price || 0).toFixed(0)}</span>
             </div>
           ))}
         </div>
@@ -70,8 +70,8 @@ function AssistantBubble({ msg }) {
           {msg.hotels.map((h, i) => (
             <div key={i} className="result-card">
               <span className="result-card__name">{h.name}</span>
-              <span className="result-card__detail">{"⭐".repeat(Math.round(h.star_rating || 0))} · {h.review_score?.toFixed(1) || "N/A"}/5</span>
-              <span className="result-card__price">${h.price_per_night_usd?.toFixed(0)}/night</span>
+              <span className="result-card__detail">{"⭐".repeat(Math.round(h.stars || 0))} · {Number(h.rating || 0).toFixed(1)}/5 · {(h.amenities || []).join(", ")}</span>
+              <span className="result-card__price">${Number(h.price_per_night || 0).toFixed(0)}/night</span>
             </div>
           ))}
         </div>
@@ -98,15 +98,18 @@ function AssistantBubble({ msg }) {
         <div className="result-section">
           <h4 className="result-section__title">💰 Budget Summary</h4>
           <div className="budget-row">
-            {msg.budget.total_budget != null && (
-              <span className="budget-pill">Total: ${msg.budget.total_budget?.toFixed(0)}</span>
+            {msg.budget.total != null && (
+              <span className="budget-pill">Total: ${Number(msg.budget.total).toFixed(0)}</span>
             )}
-            {msg.budget.total_spent != null && (
-              <span className="budget-pill">Spent: ${msg.budget.total_spent?.toFixed(0)}</span>
+            {msg.budget.spent != null && (
+              <span className="budget-pill">Spent: ${Number(msg.budget.spent).toFixed(0)}</span>
             )}
             {msg.budget.remaining != null && (
-              <span className="budget-pill budget-pill--green">Remaining: ${msg.budget.remaining?.toFixed(0)}</span>
+              <span className="budget-pill budget-pill--green">Remaining: ${Number(msg.budget.remaining).toFixed(0)}</span>
             )}
+            {msg.budget.by_category && Object.entries(msg.budget.by_category).map(([cat, amt]) => (
+              <span key={cat} className="budget-pill">{cat}: ${Number(amt).toFixed(0)}</span>
+            ))}
           </div>
         </div>
       )}
