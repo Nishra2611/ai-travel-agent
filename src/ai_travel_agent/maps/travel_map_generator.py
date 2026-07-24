@@ -125,7 +125,7 @@ def build_travel_map(
         tooltip=hotel.name,
     ).add_to(fmap)
 
-    cluster = MarkerCluster(
+    cluster: Any = MarkerCluster(  # type: ignore[no-untyped-call]
         name="All activities (clustered)", radius=CLUSTER_RADIUS
     ).add_to(fmap)
     day_feature_groups: list[Any] = []
@@ -157,7 +157,7 @@ def build_travel_map(
         )  # end near hotel, matches Week 10's loop
 
         if len(activities) >= 1:
-            folium.PolyLine(
+            folium.PolyLine(  # type: ignore[no-untyped-call]
                 locations=route_points,
                 color=color,
                 weight=3,

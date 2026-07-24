@@ -139,7 +139,7 @@ app = FastAPI(
     version="0.2.0",
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 app.add_middleware(
     CORSMiddleware,
@@ -247,7 +247,7 @@ def cache_health() -> dict[str, Any]:
 
 # ── Week 15: POST /plan ───────────────────────────────────────────────────────
 @app.post("/plan")
-@limiter.limit("20/minute")  # type: ignore[untyped-decorator]
+@limiter.limit("20/minute")
 def plan_trip(request: Request, payload: PlanPayload, background_tasks: BackgroundTasks) -> dict[str, Any]:
     """Start async planning. Returns session_id + job_id for polling."""
     session_id = str(uuid.uuid4())
@@ -272,7 +272,7 @@ def job_status(job_id: str) -> dict[str, Any]:
 
 # ── Week 15: POST /refine ─────────────────────────────────────────────────────
 @app.post("/refine")
-@limiter.limit("20/minute")  # type: ignore[untyped-decorator]
+@limiter.limit("20/minute")
 def refine_trip(request: Request, payload: RefinePayload, background_tasks: BackgroundTasks) -> dict[str, Any]:
     """Refine an existing itinerary with a natural-language instruction."""
     session = _sessions.get(payload.session_id)
@@ -497,7 +497,7 @@ async def ws_plan(websocket: WebSocket) -> None:
 
 # ── legacy endpoints (kept for backward compat) ───────────────────────────────
 @app.post("/api/trip/plan")
-@limiter.limit("20/minute")  # type: ignore[untyped-decorator]
+@limiter.limit("20/minute")
 def plan_trip_legacy(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
     raw = payload.get("request", "")
     if not raw:

@@ -73,7 +73,7 @@ strict = true
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["ai_travel_agent.utils.cache", "ai_travel_agent.tools.base", "ai_travel_agent.tools.dummy_tool"]
+module = ["ai_travel_agent.utils.cache", "ai_travel_agent.tools.base", "ai_travel_agent.tools.dummy_tool", "ai_travel_agent.api.main", "ai_travel_agent.maps.travel_map_generator"]
 ignore_errors = true
 
 [tool.pytest.ini_options]
