@@ -36,6 +36,24 @@ from ai_travel_agent.tools.restaurant_finder import RestaurantFinderTool
 from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.cache import cache
 
+
+def _safe_json(obj: Any) -> Any:
+    """Recursively convert any non-JSON-serializable values to strings."""
+    from datetime import date, datetime
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: _safe_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_safe_json(i) for i in obj]
+    try:
+        import json as _json
+        _json.dumps(obj)
+        return obj
+    except (TypeError, ValueError):
+        return str(obj)
+
+
 # ── rate limiter ──────────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
@@ -331,7 +349,7 @@ async def ws_plan(websocket: WebSocket) -> None:
         elif isinstance(raw_itin, dict):
             normalized = raw_itin
 
-        payload_out = {
+        payload_out = _safe_json({
             "type": "done",
             "session_id": session_id,
             "itinerary": normalized,
@@ -340,7 +358,7 @@ async def ws_plan(websocket: WebSocket) -> None:
             "hotels": (final_output.get("hotels") or [])[:3],
             "weather": (final_output.get("weather") or [])[:5],
             "budget": final_output.get("budget") or {},
-        }
+        })
         _sessions[session_id]["itinerary"] = normalized
         _sessions[session_id]["full_output"] = final_output
         await websocket.send_json(payload_out)
