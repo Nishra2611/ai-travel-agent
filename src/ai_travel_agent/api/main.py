@@ -1,11 +1,30 @@
-"""FastAPI application entry point."""
+"""FastAPI application — Week 15: WebSocket streaming, sessions, rate limiting, background jobs."""
 
+from __future__ import annotations
+
+import asyncio
+import json
+import os
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from ai_travel_agent.agents.graph import build_graph
 from ai_travel_agent.evaluation.judge import evaluate_itinerary
@@ -17,16 +36,42 @@ from ai_travel_agent.tools.restaurant_finder import RestaurantFinderTool
 from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.cache import cache
 
-_graph = build_graph(db_path="data/checkpoints.db")
+# ── rate limiter ──────────────────────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
+# ── graph + tools ─────────────────────────────────────────────────────────────
+_graph = build_graph(db_path="data/checkpoints.db")
 _attraction_tool = AttractionFinderTool()
 _restaurant_tool = RestaurantFinderTool()
+flight_tool = DummyFlightTool()
+hotel_tool = HotelSearchTool()
+_weather_tool = WeatherCheckerTool()
+_budget_tool = BudgetTrackerTool()
 
+# ── in-memory job store (replace with Redis/DB for production) ────────────────
+_jobs: dict[str, dict[str, Any]] = {}
+
+# ── session store ─────────────────────────────────────────────────────────────
+_sessions: dict[str, dict[str, Any]] = {}
+
+# ── API key (env-var based) ───────────────────────────────────────────────────
+_API_KEY = os.getenv("API_KEY", "dev-key-change-me")
+
+
+def _require_api_key(request: Request) -> None:
+    key = request.headers.get("x-api-key") or request.headers.get("authorization", "").removeprefix("Bearer ")
+    if key != _API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+# ── app ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="AI Travel Agent",
-    description="Autonomous AI Travel Planning Agent API",
-    version="0.1.0",
+    description="Production backend — Week 15",
+    version="0.2.0",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,10 +81,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-flight_tool = DummyFlightTool()
-hotel_tool = HotelSearchTool()
-_weather_tool = WeatherCheckerTool()
-_budget_tool = BudgetTrackerTool()
+
+# ── Pydantic models ───────────────────────────────────────────────────────────
+class PlanPayload(BaseModel):
+    destination: str
+    days: int = 5
+    budget: float = 1500
+    extra: str = ""
+
+
+class RefinePayload(BaseModel):
+    session_id: str
+    instruction: str  # e.g. "less walking", "add museums"
+
+
+class EvaluatePayload(BaseModel):
+    itinerary: dict[str, Any]
+    request: str
 
 
 class BudgetPayload(BaseModel):
@@ -51,36 +109,228 @@ class BudgetPayload(BaseModel):
     description: str | None = None
 
 
-class PlanTripPayload(BaseModel):
-    request: str
+# ── helpers ───────────────────────────────────────────────────────────────────
+def _build_raw_input(p: PlanPayload) -> str:
+    parts = [f"{p.destination} {p.days} days ${p.budget:.0f}"]
+    if p.extra:
+        parts.append(p.extra)
+    return " ".join(parts)
 
 
-class EvaluatePayload(BaseModel):
-    itinerary: dict[str, Any]
-    request: str
+def _run_graph(raw_input: str, thread_id: str) -> dict[str, Any]:
+    return _graph.invoke(
+        {"raw_input": raw_input, "status": "parse", "messages": []},
+        config={"configurable": {"thread_id": thread_id}},
+    )
 
 
+async def _stream_graph(raw_input: str, thread_id: str) -> AsyncIterator[dict[str, Any]]:
+    """Yield each node's output as it completes via astream."""
+    async for chunk in _graph.astream(
+        {"raw_input": raw_input, "status": "parse", "messages": []},
+        config={"configurable": {"thread_id": thread_id}},
+    ):
+        yield chunk
+
+
+def _background_plan(job_id: str, raw_input: str, thread_id: str) -> None:
+    try:
+        result = _run_graph(raw_input, thread_id)
+        itinerary = (result.get("final_output") or {}).get("itinerary") or {}
+        _jobs[job_id] = {"status": "completed", "result": itinerary, "thread_id": thread_id}
+    except Exception as exc:
+        _jobs[job_id] = {"status": "failed", "error": str(exc)}
+
+
+# ── root / health ─────────────────────────────────────────────────────────────
 @app.get("/")
 def root() -> dict[str, Any]:
-    return {
-        "message": "AI Travel Agent is running",
-        "version": app.version,
-        "endpoints": [
-            "/health", "/flights", "/api/hotels", "/cache/health",
-            "/api/trip/plan", "/api/trip/evaluate", "/docs",
-        ],
-    }
+    return {"message": "AI Travel Agent is running", "version": app.version}
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    healthy = cache.is_healthy()
-    return {"status": "ok" if healthy else "degraded"}
+    return {"status": "ok" if cache.is_healthy() else "degraded"}
 
 
 @app.get("/cache/health")
 def cache_health() -> dict[str, Any]:
     return {"healthy": cache.is_healthy()}
+
+
+# ── Week 15: POST /plan ───────────────────────────────────────────────────────
+@app.post("/plan")
+@limiter.limit("20/minute")
+def plan_trip(request: Request, payload: PlanPayload, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    """Start async planning. Returns session_id + job_id for polling."""
+    session_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
+    raw_input = _build_raw_input(payload)
+
+    _sessions[session_id] = {"raw_input": raw_input, "payload": payload.model_dump(), "itinerary": None}
+    _jobs[job_id] = {"status": "running"}
+
+    background_tasks.add_task(_background_plan, job_id, raw_input, session_id)
+    return {"session_id": session_id, "job_id": job_id, "status": "planning"}
+
+
+# ── Week 15: GET /status/{job_id} ─────────────────────────────────────────────
+@app.get("/status/{job_id}")
+def job_status(job_id: str) -> dict[str, Any]:
+    job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+# ── Week 15: POST /refine ─────────────────────────────────────────────────────
+@app.post("/refine")
+@limiter.limit("20/minute")
+def refine_trip(request: Request, payload: RefinePayload, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    """Refine an existing itinerary with a natural-language instruction."""
+    session = _sessions.get(payload.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    job_id = str(uuid.uuid4())
+    raw_input = session["raw_input"] + f". Refinement: {payload.instruction}"
+    _jobs[job_id] = {"status": "running"}
+
+    background_tasks.add_task(_background_plan, job_id, raw_input, payload.session_id)
+    return {"session_id": payload.session_id, "job_id": job_id, "status": "refining"}
+
+
+# ── Week 15: GET /export ──────────────────────────────────────────────────────
+@app.get("/export")
+def export_itinerary(
+    session_id: str = Query(...),
+    fmt: str = Query("json", pattern="^(json|markdown|pdf)$"),
+) -> Response:
+    """Export itinerary as JSON, Markdown, or PDF."""
+    session = _sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # find latest completed job for this session
+    itinerary: dict[str, Any] = {}
+    for job in reversed(list(_jobs.values())):
+        if job.get("status") == "completed" and job.get("thread_id") == session_id:
+            itinerary = job.get("result", {})
+            break
+
+    if not itinerary:
+        raise HTTPException(status_code=404, detail="No completed itinerary for this session")
+
+    if fmt == "json":
+        return JSONResponse(content=itinerary)
+
+    if fmt == "markdown":
+        lines = [f"# Itinerary\n"]
+        for day, activities in itinerary.items():
+            lines.append(f"## {day}")
+            if isinstance(activities, list):
+                for a in activities:
+                    lines.append(f"- {a}")
+            else:
+                lines.append(str(activities))
+        md = "\n".join(lines)
+        return Response(content=md, media_type="text/markdown",
+                        headers={"Content-Disposition": "attachment; filename=itinerary.md"})
+
+    # pdf — delegate to Week 14 pdf generator if available
+    try:
+        from ai_travel_agent.pdf.pdf_generator import generate_pdf  # type: ignore
+        pdf_bytes = generate_pdf(itinerary)
+        return Response(content=pdf_bytes, media_type="application/pdf",
+                        headers={"Content-Disposition": "attachment; filename=itinerary.pdf"})
+    except Exception:
+        return JSONResponse(content={"error": "PDF generation unavailable", "itinerary": itinerary})
+
+
+# ── Week 15: WebSocket /ws/plan ───────────────────────────────────────────────
+@app.websocket("/ws/plan")
+async def ws_plan(websocket: WebSocket) -> None:
+    """Stream planning progress node-by-node to the frontend."""
+    await websocket.accept()
+    try:
+        data = await websocket.receive_json()
+        destination = data.get("destination", "")
+        days = int(data.get("days", 5))
+        budget = float(data.get("budget", 1500))
+        extra = data.get("extra", "")
+
+        if not destination:
+            await websocket.send_json({"type": "error", "message": "destination required"})
+            return
+
+        session_id = str(uuid.uuid4())
+        raw_input = f"{destination} {days} days ${budget:.0f}"
+        if extra:
+            raw_input += f" {extra}"
+
+        _sessions[session_id] = {"raw_input": raw_input, "itinerary": None}
+        await websocket.send_json({"type": "session", "session_id": session_id})
+
+        node_labels: dict[str, str] = {
+            "parse_preferences": "Parsing your request...",
+            "allocate_budget": "Allocating budget...",
+            "search_flights": "Searching flights...",
+            "search_hotels": "Finding hotels...",
+            "find_attractions": "Discovering attractions...",
+            "find_restaurants": "Finding restaurants...",
+            "check_weather": "Checking weather...",
+            "track_budget": "Tracking budget...",
+            "build_geo_clusters": "Clustering locations...",
+            "build_itinerary": "Building itinerary...",
+            "optimize_routes": "Optimizing routes...",
+            "evaluate_budget": "Evaluating budget...",
+            "assemble_output": "Assembling final plan...",
+        }
+
+        final_itinerary: dict[str, Any] = {}
+
+        async for chunk in _stream_graph(raw_input, session_id):
+            for node_name, node_output in chunk.items():
+                label = node_labels.get(node_name, f"Running {node_name}...")
+                await websocket.send_json({"type": "progress", "node": node_name, "message": label})
+                await asyncio.sleep(0)  # yield to event loop
+
+                if node_name == "assemble_output" and isinstance(node_output, dict):
+                    final_itinerary = (node_output.get("final_output") or {}).get("itinerary") or {}
+
+        _sessions[session_id]["itinerary"] = final_itinerary
+        await websocket.send_json({"type": "done", "session_id": session_id, "itinerary": final_itinerary})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        try:
+            await websocket.send_json({"type": "error", "message": str(exc)})
+        except Exception:
+            pass
+
+
+# ── legacy endpoints (kept for backward compat) ───────────────────────────────
+@app.post("/api/trip/plan")
+@limiter.limit("20/minute")
+def plan_trip_legacy(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    raw = payload.get("request", "")
+    if not raw:
+        raise HTTPException(status_code=422, detail="request field required")
+    thread_id = str(uuid.uuid4())
+    result = _run_graph(raw, thread_id)
+    itinerary = (result.get("final_output") or {}).get("itinerary") or {}
+    if not itinerary:
+        raise HTTPException(status_code=500, detail=result.get("error", "planning failed"))
+    return {"thread_id": thread_id, "itinerary": itinerary}
+
+
+@app.post("/api/trip/evaluate")
+def evaluate_trip(payload: EvaluatePayload) -> dict[str, Any]:
+    try:
+        return evaluate_itinerary(payload.itinerary, payload.request)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/flights")
@@ -92,6 +342,46 @@ def search_flights(
     return {"origin": origin, "destination": destination, "results": result}
 
 
+@app.get("/api/hotels")
+def search_hotels(
+    city: str, check_in: str, check_out: str,
+    adults: int = 2,
+    max_price_per_night: float | None = None,
+    min_rating: float | None = None,
+    hotel_class: str | None = None,
+) -> dict[str, Any]:
+    result = hotel_tool._run(city=city, check_in=check_in, check_out=check_out,
+                              adults=adults, max_price_per_night=max_price_per_night,
+                              min_rating=min_rating, hotel_class=hotel_class)
+    return {"city": city, "check_in": check_in, "check_out": check_out,
+            "adults": adults, "count": len(result), "results": result}
+
+
+@app.get("/api/trip/attractions")
+def get_attractions(city: str, country: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
+    try:
+        return _attraction_tool._run(city=city, country=country, limit=limit)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"attraction lookup failed: {exc}") from exc
+
+
+@app.get("/api/trip/weather")
+def get_weather(city: str, days: int = 7) -> list[dict[str, Any]]:
+    return _weather_tool._run(city=city, days=days)
+
+
+@app.get("/api/trip/restaurants")
+def get_restaurants(
+    city: str, cuisine: str | None = None,
+    budget: str | None = None, min_rating: float = 0.0, limit: int = 10,
+) -> list[dict[str, Any]]:
+    try:
+        return _restaurant_tool._run(city=city, cuisine=cuisine, budget=budget,
+                                      min_rating=min_rating, limit=limit)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"restaurant lookup failed: {exc}") from exc
+
+
 @app.post("/api/trip/budget")
 def update_budget(payload: BudgetPayload) -> dict[str, Any]:
     return _budget_tool._run(**payload.model_dump())
@@ -100,105 +390,3 @@ def update_budget(payload: BudgetPayload) -> dict[str, Any]:
 @app.get("/api/trip/budget/{trip_id}")
 def get_budget_summary(trip_id: str) -> dict[str, Any]:
     return _budget_tool._run(trip_id=trip_id, action="get_summary")
-
-
-@app.get("/api/trip/weather")
-def get_weather(city: str, days: int = 7) -> list[dict[str, Any]]:
-    return _weather_tool._run(city=city, days=days)
-
-
-@app.get("/api/hotels")
-def search_hotels(
-    city: str,
-    check_in: str,
-    check_out: str,
-    adults: int = 2,
-    max_price_per_night: float | None = None,
-    min_rating: float | None = None,
-    hotel_class: str | None = None,
-) -> dict[str, Any]:
-    result = hotel_tool._run(
-        city=city,
-        check_in=check_in,
-        check_out=check_out,
-        adults=adults,
-        max_price_per_night=max_price_per_night,
-        min_rating=min_rating,
-        hotel_class=hotel_class,
-    )
-
-    return {
-        "city": city,
-        "check_in": check_in,
-        "check_out": check_out,
-        "adults": adults,
-        "count": len(result),
-        "results": result,
-    }
-
-
-@app.get("/api/trip/attractions")
-def get_attractions(
-    city: str,
-    country: str | None = None,
-    limit: int = 10,
-) -> list[dict[str, Any]]:
-    """Top attractions for a city — name, lat/lng, hours, rating."""
-    try:
-        return _attraction_tool._run(city=city, country=country, limit=limit)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"attraction lookup failed: {exc}"
-        ) from exc
-
-
-@app.post("/api/trip/plan")
-def plan_trip(payload: PlanTripPayload) -> dict[str, Any]:
-    """Full Week 11 optimizer pipeline: natural language → itinerary."""
-    try:
-        thread_id = str(uuid.uuid4())
-        result = _graph.invoke(
-            {"raw_input": payload.request, "status": "parse", "messages": []},
-            config={"configurable": {"thread_id": thread_id}},
-        )
-        itinerary = (result.get("final_output") or {}).get("itinerary") or {}
-        if not itinerary:
-            raise HTTPException(status_code=500, detail=result.get("error", "planning failed"))
-        return {"thread_id": thread_id, "itinerary": itinerary}
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-@app.post("/api/trip/evaluate")
-def evaluate_trip(payload: EvaluatePayload) -> dict[str, Any]:
-    """Week 12 LLM-as-judge: score an itinerary on 10 dimensions."""
-    try:
-        result = evaluate_itinerary(payload.itinerary, payload.request)
-        return result
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-@app.get("/api/trip/restaurants")
-def get_restaurants(
-    city: str,
-    cuisine: str | None = None,
-    budget: str | None = None,  # "$" | "$$" | "$$$" | "$$$$"
-    min_rating: float = 0.0,
-    limit: int = 10,
-) -> list[dict[str, Any]]:
-    """Restaurants filtered by cuisine, budget tier, and minimum rating."""
-    try:
-        return _restaurant_tool._run(
-            city=city,
-            cuisine=cuisine,
-            budget=budget,
-            min_rating=min_rating,
-            limit=limit,
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"restaurant lookup failed: {exc}"
-        ) from exc
