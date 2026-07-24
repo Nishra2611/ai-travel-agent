@@ -28,7 +28,7 @@ from typing import Any
 from langchain_ollama import OllamaLLM
 from pydantic import BaseModel, Field
 
-from ai_travel_agent.models.travel_preferences import TravelPreferences
+from ai_travel_agent.models.travel_preferences import TravelPreferences, TravelStyle
 from ai_travel_agent.tools.base import BaseTravelTool
 from ai_travel_agent.utils.logger import get_logger
 
@@ -137,18 +137,56 @@ class PreferenceParserTool(BaseTravelTool):
             return self._fallback(original)
 
     def _fallback(self, user_input: str) -> dict[str, Any]:
-        """
-        Minimal safe fallback when LLM or JSON parsing fails.
-        Returns a TravelPreferences with confidence=0 so the supervisor
-        can detect a low-quality parse and ask for clarification.
-        """
+        """Regex-based fallback — extracts destination, days, budget from raw text."""
+        text = user_input.strip()
+
+        # days: 5 days / 5-day
+        days = 5
+        m = re.search(r"(\d+)\s*-?\s*day", text, re.I)
+        if m:
+            days = int(m.group(1))
+
+        # budget: $1500 or 1500 usd or plain number ≥100 after days keyword
+        budget: float | None = None
+        m = re.search(r"\$([\d,]+)", text)
+        if not m:
+            m = re.search(r"([\d,]+)\s*(?:usd|dollars?)", text, re.I)
+        if not m:
+            m = re.search(r"(?:days?|day)\s*\$?\s*(\d{3,6})\b", text, re.I)
+        if not m:
+            nums = re.findall(r"\b(\d{3,6})\b", text)
+            candidates = [n for n in nums if n != str(days)]
+            if candidates:
+                m = type("M", (), {"group": lambda self, x: candidates[-1]})()  # fake match
+        if m:
+            budget = float(m.group(1).replace(",", ""))
+
+        # destination: first capitalized word(s) before digits
+        destination = "Unknown"
+        m = re.match(r"([A-Za-z][A-Za-z\s]{1,30}?)(?:\s+\d|\s*$)", text)
+        if m:
+            candidate = m.group(1).strip()
+            # remove trailing common words
+            candidate = re.sub(r"\s*(trip|travel|visit|holiday|vacation|tour)\s*$", "", candidate, flags=re.I).strip()
+            if candidate:
+                destination = candidate.title()
+
+        # travel style from keywords
+        style: TravelStyle = TravelStyle.MODERATE
+        if re.search(r"budget|cheap|backpack", text, re.I):
+            style = TravelStyle.BUDGET
+        elif re.search(r"luxury|5-star|premium|first.class", text, re.I):
+            style = TravelStyle.LUXURY
+
         prefs = TravelPreferences(
-            destination="Unknown",
-            duration_days=7,
-            budget_usd=None,
+            destination=destination,
+            duration_days=days,
+            budget_usd=budget,
+            travel_style=style,
             raw_input=user_input,
-            confidence_score=0.0,
+            confidence_score=0.5,
         )
+        logger.info("Fallback parsed: destination=%s days=%s budget=%s", destination, days, budget)
         return prefs.model_dump()
 
     # not used but satisfies BaseTravelTool abstract methods

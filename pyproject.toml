@@ -28,7 +28,13 @@ dependencies = [
     "anthropic (>=0.117.0,<1.0.0)",
     "langgraph-checkpoint-sqlite (>=3.1.0,<4.0.0)",
     "numpy (>=1.26.0,<2.0.0)",
-    "scikit-learn (>=1.5.0,<2.0.0)"
+    "scikit-learn (>=1.5.0,<2.0.0)",
+    "folium (>=0.20.0,<0.21.0)",
+    "playwright (>=1.61.0,<2.0.0)",
+    "pillow (>=12.3.0,<13.0.0)",
+    "slowapi (>=0.1.9,<0.2.0)",
+    "websockets (>=12.0,<16.0)",
+    "fpdf2 (>=2.7.0,<3.0.0)"
 ]
 
 
@@ -67,7 +73,7 @@ strict = true
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["ai_travel_agent.utils.cache", "ai_travel_agent.tools.base", "ai_travel_agent.tools.dummy_tool"]
+module = ["ai_travel_agent.utils.cache", "ai_travel_agent.tools.base", "ai_travel_agent.tools.dummy_tool", "ai_travel_agent.api.main", "ai_travel_agent.maps.travel_map_generator"]
 ignore_errors = true
 
 [tool.pytest.ini_options]

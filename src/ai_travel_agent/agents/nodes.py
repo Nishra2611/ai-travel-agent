@@ -23,8 +23,11 @@ build_itinerary
 
 from __future__ import annotations
 
+# week 13
+import os
 import traceback
 import uuid
+from pathlib import Path
 from typing import Any, cast
 
 from ai_travel_agent.agents.state import TravelState
@@ -46,6 +49,23 @@ from ai_travel_agent.geo.distance_matrix_client import (
 # week 9
 # from ai_travel_agent.geo.distance_matrix_client import GeoPoint
 from ai_travel_agent.geo.geo_clustering import _GeoClusterBuilder
+from ai_travel_agent.maps.thumbnail_renderer import render_thumbnail_safe
+
+# -- add to your existing nodes.py imports --
+from ai_travel_agent.maps.travel_map_generator import (
+    MapActivity,
+    MapHotel,
+    build_travel_map,
+)
+from ai_travel_agent.pdf.pdf_generator import PDFGenerationError, _PDFGenerator
+from ai_travel_agent.pdf.qr_code_generator import generate_qr_code_safe
+from ai_travel_agent.pdf.templates import (
+    BudgetRow,
+    DayActivity,
+    DayPlan,
+    PDFContext,
+)
+from ai_travel_agent.pdf.unsplash_client import get_destination_photo_safe
 from ai_travel_agent.route.route_optimizer import (
     _RouteOptimizer,
     build_distance_lookup,
@@ -62,7 +82,19 @@ from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+MAP_OUTPUT_DIR = "outputs/maps"
+# till here week 13
+
+logger = get_logger(__name__)
 MIN_ACTIVITIES_TO_OPTIMIZE = 2
+
+
+_pdf_generator = _PDFGenerator()
+
+PDF_OUTPUT_DIR = "outputs/pdf"
+PDF_ASSETS_DIR = "outputs/pdf/assets"
+
 
 # ── singletons ────────────────────────────────────────────────────────────────
 _flight_tool = FlightSearchTool()
@@ -752,3 +784,215 @@ def _extract_activity_points(
 
 
 # week 10
+
+
+# week 13
+def generate_map(state: TravelState) -> dict[str, Any]:
+    """
+    Builds the interactive HTML map from the final itinerary + hotel, then
+    rasterizes a PNG thumbnail for the Week 14 PDF to embed. Runs after
+    assemble_output (needs the finished itinerary, not an intermediate
+    one) and never raises -- a mapping failure shouldn't cost the person
+    their itinerary JSON/PDF.
+    """
+    hotels = state.get("hotels") or []
+    hotel_dict = hotels[0] if hotels else None
+    itinerary = state.get("itinerary")
+
+    if not hotel_dict or not itinerary or not itinerary.get("days"):
+        logger.warning("no hotel/itinerary available, skipping map generation")
+        return {"map_output": None}
+
+    if hotel_dict.get("latitude") is None or hotel_dict.get("longitude") is None:
+        logger.warning("hotel missing coordinates, skipping map generation")
+        return {"map_output": None}
+
+    hotel = MapHotel(
+        id=hotel_dict.get("id", "hotel"),
+        name=hotel_dict.get("name", "Hotel"),
+        latitude=hotel_dict["latitude"],
+        longitude=hotel_dict["longitude"],
+    )
+    days = [_to_map_activities(day) for day in itinerary["days"]]
+
+    try:
+        # html_path = os.path.join(MAP_OUTPUT_DIR, "travel_map.html")
+        # thumbnail_path = os.path.join(MAP_OUTPUT_DIR, "travel_map_thumbnail.png")
+        html_path = Path(MAP_OUTPUT_DIR, "travel_map.html").as_posix()
+        thumbnail_path = Path(MAP_OUTPUT_DIR, "travel_map_thumbnail.png").as_posix()
+
+        build_travel_map(hotel, days, html_path, animate=True)
+        actual_thumbnail = render_thumbnail_safe(html_path, thumbnail_path)
+
+        logger.info(
+            "map generated",
+            extra={
+                "html_path": html_path,
+                "has_thumbnail": actual_thumbnail is not None,
+            },
+        )
+        return {
+            "map_output": {
+                "html_path": html_path,
+                "thumbnail_path": str(actual_thumbnail) if actual_thumbnail else None,
+            }
+        }
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- the map is a bonus artifact, not a required one
+        logger.error("map generation failed", extra={"error": str(exc)})
+        return {"map_output": None}
+
+
+def _to_map_activities(day: dict[str, Any]) -> list[MapActivity]:
+    activities = []
+    for i, activity in enumerate(day.get("activities", [])):
+        if activity.get("latitude") is None or activity.get("longitude") is None:
+            continue
+        activities.append(
+            MapActivity(
+                id=activity.get("id") or activity.get("name") or f"activity_{i}",
+                name=activity.get("name", "Activity"),
+                latitude=activity["latitude"],
+                longitude=activity["longitude"],
+                time_slot=activity.get("time_slot"),
+                cost=activity.get("cost"),
+                category=activity.get("category"),
+            )
+        )
+    return activities
+
+
+# week 13
+
+
+# week 14
+def generate_pdf(state: TravelState) -> dict[str, Any]:
+    """
+    Builds the PDFContext from state and renders the final PDF itinerary.
+    Never raises: a PDF failure (WeasyPrint missing/system libs, malformed
+    data) is recorded in state["pdf_output"]["status"] rather than taking
+    down a run where the JSON itinerary and the HTML map both already
+    succeeded.
+    """
+    itinerary = state.get("itinerary")
+    if not itinerary or not itinerary.get("days"):
+        logger.warning("no itinerary available, skipping PDF generation")
+        return {"pdf_output": None}
+
+    try:
+        context = _build_pdf_context(state)
+        output_path = os.path.join(PDF_OUTPUT_DIR, "itinerary.pdf")
+        _pdf_generator.build(context, output_path)
+        return {
+            "pdf_output": {
+                "pdf_path": str(output_path).replace("\\", "/"),
+                "status": "generated",
+                "error": None,
+            }
+        }
+    except PDFGenerationError as exc:
+        logger.error("PDF generation failed", extra={"error": str(exc)})
+        return {"pdf_output": {"pdf_path": None, "status": "failed", "error": str(exc)}}
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- context-building bugs shouldn't crash the graph either
+        logger.error("PDF context assembly failed", extra={"error": str(exc)})
+        return {"pdf_output": {"pdf_path": None, "status": "failed", "error": str(exc)}}
+
+
+def _build_pdf_context(state: TravelState) -> PDFContext:
+    prefs = state.get("preferences", {})
+    destination = prefs.get("destination_city", "Your Trip")
+    itinerary = state["itinerary"]
+
+    days = [
+        DayPlan(
+            day_number=i + 1,
+            activities=[
+                DayActivity(
+                    name=a.get("name", "Activity"),
+                    time_slot=a.get("time_slot"),
+                    cost=a.get("cost"),
+                )
+                for a in day.get("activities", [])
+            ],
+        )
+        for i, day in enumerate(itinerary["days"])
+    ]
+
+    allocation = state.get("budget_allocation") or {}
+    actual_spend = _extract_actual_spend(state)
+    budget_rows = [
+        BudgetRow(
+            category=category.value.title(),
+            allocated=(
+                allocation.get("allocations", {}).get(category.value, {}) or {}
+            ).get("amount", 0.0),
+            spent=actual_spend.get(category, 0.0),
+        )
+        for category in BudgetCategory
+    ]
+    total_budget = allocation.get("total_budget", 0.0)
+    total_spent = sum(actual_spend.values())
+    adherence = state.get("budget_adherence") or {}
+
+    cover_photo_path = get_destination_photo_safe(
+        f"{destination} skyline", os.path.join(PDF_ASSETS_DIR, "cover.jpg")
+    )
+
+    map_output = state.get("map_output") or {}
+    qr_code_path = None
+    if map_output.get("html_path"):
+        qr_target = _resolve_map_share_url(map_output["html_path"])
+        qr_code_path = generate_qr_code_safe(
+            qr_target, os.path.join(PDF_ASSETS_DIR, "map_qr.png")
+        )
+
+    return PDFContext(
+        destination=destination,
+        trip_dates=prefs.get("trip_dates", "Dates TBD"),
+        executive_summary=_build_executive_summary(
+            destination, len(days), allocation, adherence
+        ),
+        days=days,
+        budget_rows=budget_rows,
+        total_budget=total_budget,
+        total_spent=total_spent,
+        budget_verdict=adherence.get("verdict"),
+        cover_photo_path=str(cover_photo_path) if cover_photo_path else None,
+        map_thumbnail_path=map_output.get("thumbnail_path"),
+        qr_code_path=str(qr_code_path) if qr_code_path else None,
+    )
+
+
+def _build_executive_summary(
+    destination: str,
+    num_days: int,
+    allocation: dict[str, Any],
+    adherence: dict[str, Any],
+) -> str:
+    profile = allocation.get("profile", "trip")
+    summary = f"A {num_days}-day {profile.replace('_', '-')} trip to {destination}."
+    if adherence.get("overall_score") is not None:
+        summary += f" Budget adherence score: {adherence['overall_score']}/100 ({adherence.get('verdict', 'n/a').replace('_', ' ')})."
+    return summary
+
+
+def _resolve_map_share_url(html_path: str) -> str:
+    """See qr_code_generator.py's module docstring: a bare file:// path
+    won't open on most phone QR scanners. If PUBLIC_MAP_BASE_URL is set
+    (e.g. once a hosting/sharing endpoint exists), use that; otherwise
+    fall back to the local file URI and log that it's demo-only."""
+    base_url = os.environ.get("PUBLIC_MAP_BASE_URL")
+    if base_url:
+        return f"{base_url.rstrip('/')}/{os.path.basename(html_path)}"
+    logger.warning(
+        "PUBLIC_MAP_BASE_URL not set, QR code will encode a local file path "
+        "that most phone scanners can't open -- fine for a live demo on the "
+        "same machine, not for sharing"
+    )
+    return f"file://{os.path.abspath(html_path)}"
+
+
+# week 14
