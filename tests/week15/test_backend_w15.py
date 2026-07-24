@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -265,7 +264,7 @@ def test_websocket_done_contains_session_id(client):
 def test_websocket_disconnect_handled(client):
     # just connect and immediately disconnect — should not raise server error
     try:
-        with client.websocket_connect("/ws/plan") as ws:
+        with client.websocket_connect("/ws/plan"):
             pass  # disconnect immediately
     except Exception:
         pass  # disconnect exceptions are expected
@@ -292,7 +291,8 @@ def test_legacy_plan_empty_request(client):
 
 
 def test_flights_endpoint(client):
-    with patch.object(flight_tool := __import__("ai_travel_agent.tools.dummy_tool", fromlist=["DummyFlightTool"]).DummyFlightTool(), "_run", return_value=[]):
+    with patch("ai_travel_agent.api.main.flight_tool") as m:
+        m._run.return_value = []
         r = client.get("/flights?origin=AMD&destination=DEL")
     assert r.status_code == 200
 

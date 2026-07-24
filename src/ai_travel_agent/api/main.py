@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import uuid
 from collections.abc import AsyncIterator
@@ -11,7 +10,6 @@ from typing import Any
 
 from fastapi import (
     BackgroundTasks,
-    Depends,
     FastAPI,
     HTTPException,
     Query,
@@ -58,14 +56,14 @@ def _build_pdf(itinerary: dict[str, Any], title: str = "Trip Itinerary") -> byte
     """Build a Unicode-safe PDF from the normalized itinerary dict using fpdf2."""
     from fpdf import FPDF
 
-    FONT_DIR = "C:/Windows/Fonts/"
-    REGULAR = FONT_DIR + "segoeui.ttf"
-    BOLD    = FONT_DIR + "segoeuib.ttf"
+    font_dir = "C:/Windows/Fonts/"
+    regular = font_dir + "segoeui.ttf"
+    bold = font_dir + "segoeuib.ttf"
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_font("Segoe", style="",  fname=REGULAR)
-    pdf.add_font("Segoe", style="B", fname=BOLD)
+    pdf.add_font("Segoe", style="", fname=regular)
+    pdf.add_font("Segoe", style="B", fname=bold)
     pdf.add_page()
 
     # header
@@ -188,10 +186,11 @@ def _build_raw_input(p: PlanPayload) -> str:
 
 
 def _run_graph(raw_input: str, thread_id: str) -> dict[str, Any]:
-    return _graph.invoke(
+    result: dict[str, Any] = _graph.invoke(
         {"raw_input": raw_input, "status": "parse", "messages": []},
         config={"configurable": {"thread_id": thread_id}},
     )
+    return result
 
 
 async def _stream_graph(raw_input: str, thread_id: str) -> AsyncIterator[dict[str, Any]]:
@@ -248,7 +247,7 @@ def cache_health() -> dict[str, Any]:
 
 # ── Week 15: POST /plan ───────────────────────────────────────────────────────
 @app.post("/plan")
-@limiter.limit("20/minute")
+@limiter.limit("20/minute")  # type: ignore[untyped-decorator]
 def plan_trip(request: Request, payload: PlanPayload, background_tasks: BackgroundTasks) -> dict[str, Any]:
     """Start async planning. Returns session_id + job_id for polling."""
     session_id = str(uuid.uuid4())
@@ -273,7 +272,7 @@ def job_status(job_id: str) -> dict[str, Any]:
 
 # ── Week 15: POST /refine ─────────────────────────────────────────────────────
 @app.post("/refine")
-@limiter.limit("20/minute")
+@limiter.limit("20/minute")  # type: ignore[untyped-decorator]
 def refine_trip(request: Request, payload: RefinePayload, background_tasks: BackgroundTasks) -> dict[str, Any]:
     """Refine an existing itinerary with a natural-language instruction."""
     session = _sessions.get(payload.session_id)
@@ -498,7 +497,7 @@ async def ws_plan(websocket: WebSocket) -> None:
 
 # ── legacy endpoints (kept for backward compat) ───────────────────────────────
 @app.post("/api/trip/plan")
-@limiter.limit("20/minute")
+@limiter.limit("20/minute")  # type: ignore[untyped-decorator]
 def plan_trip_legacy(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
     raw = payload.get("request", "")
     if not raw:

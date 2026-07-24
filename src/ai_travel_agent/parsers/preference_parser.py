@@ -28,7 +28,7 @@ from typing import Any
 from langchain_ollama import OllamaLLM
 from pydantic import BaseModel, Field
 
-from ai_travel_agent.models.travel_preferences import TravelPreferences
+from ai_travel_agent.models.travel_preferences import TravelPreferences, TravelStyle
 from ai_travel_agent.tools.base import BaseTravelTool
 from ai_travel_agent.utils.logger import get_logger
 
@@ -172,11 +172,11 @@ class PreferenceParserTool(BaseTravelTool):
                 destination = candidate.title()
 
         # travel style from keywords
-        style = "moderate"
+        style: TravelStyle = TravelStyle.MODERATE
         if re.search(r"budget|cheap|backpack", text, re.I):
-            style = "budget"
+            style = TravelStyle.BUDGET
         elif re.search(r"luxury|5-star|premium|first.class", text, re.I):
-            style = "luxury"
+            style = TravelStyle.LUXURY
 
         prefs = TravelPreferences(
             destination=destination,
