@@ -55,21 +55,27 @@ def _safe_json(obj: Any) -> Any:
 
 
 def _build_pdf(itinerary: dict[str, Any], title: str = "Trip Itinerary") -> bytes:
-    """Build a PDF from the normalized itinerary dict using fpdf2."""
+    """Build a Unicode-safe PDF from the normalized itinerary dict using fpdf2."""
     from fpdf import FPDF
+
+    FONT_DIR = "C:/Windows/Fonts/"
+    REGULAR = FONT_DIR + "segoeui.ttf"
+    BOLD    = FONT_DIR + "segoeuib.ttf"
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_font("Segoe", style="",  fname=REGULAR)
+    pdf.add_font("Segoe", style="B", fname=BOLD)
     pdf.add_page()
 
-    # title
-    pdf.set_font("Helvetica", "B", 20)
-    pdf.set_text_color(79, 70, 229)  # accent purple
-    pdf.cell(0, 12, "AI Travel Planner", ln=True, align="C")
-    pdf.set_font("Helvetica", "", 12)
+    # header
+    pdf.set_font("Segoe", "B", 20)
+    pdf.set_text_color(79, 70, 229)
+    pdf.cell(0, 12, "AI Travel Planner", new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.set_font("Segoe", "", 12)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 8, title, ln=True, align="C")
-    pdf.ln(6)
+    pdf.cell(0, 8, title, new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.ln(4)
 
     # divider
     pdf.set_draw_color(79, 70, 229)
@@ -78,24 +84,23 @@ def _build_pdf(itinerary: dict[str, Any], title: str = "Trip Itinerary") -> byte
     pdf.ln(6)
 
     if not itinerary:
-        pdf.set_font("Helvetica", "I", 11)
+        pdf.set_font("Segoe", "", 11)
         pdf.set_text_color(150, 150, 150)
-        pdf.cell(0, 10, "No itinerary data available.", ln=True)
+        pdf.cell(0, 10, "No itinerary data available.", new_x="LMARGIN", new_y="NEXT")
     else:
         for day, activities in itinerary.items():
-            # day header
-            pdf.set_font("Helvetica", "B", 13)
+            pdf.set_font("Segoe", "B", 13)
             pdf.set_text_color(30, 30, 30)
             pdf.set_fill_color(238, 242, 255)
-            pdf.cell(0, 9, str(day), ln=True, fill=True)
+            pdf.cell(0, 9, str(day), new_x="LMARGIN", new_y="NEXT", fill=True)
             pdf.ln(1)
 
             items = activities if isinstance(activities, list) else [str(activities)]
-            pdf.set_font("Helvetica", "", 10)
+            pdf.set_font("Segoe", "", 10)
             pdf.set_text_color(60, 60, 60)
             for item in items:
-                pdf.cell(6)  # indent
-                pdf.multi_cell(0, 7, f"\u2022  {item}")
+                pdf.set_x(pdf.l_margin + 6)
+                pdf.multi_cell(0, 7, f"- {item}")
             pdf.ln(3)
 
     return bytes(pdf.output())
