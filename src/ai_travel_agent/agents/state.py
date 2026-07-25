@@ -59,6 +59,12 @@ class TravelState(TypedDict, total=False):
     budget_error: str | None
     itinerary_error: str | None  # ← new Week 5
 
+    # -- Week 13: interactive map --
+    map_output: (
+        dict[str, Any] | None
+    )  # set by generate_map: {"html_path": ..., "thumbnail_path": ...}
+    pdf_output: dict[str, Any] | None
+
     # ── conversation memory (LangGraph appends) ───────────────────────
     messages: Annotated[list[dict[str, str]], operator.add]
 
