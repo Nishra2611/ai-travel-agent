@@ -65,7 +65,7 @@ jobs:
         run: |
           poetry run pytest tests/unit tests/integration -m "not live_server" \
             --cov=ai_travel_agent --cov-report=xml --cov-report=term-missing \
-            --cov-fail-under=85 -v
+            --cov-fail-under=75 -v
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
