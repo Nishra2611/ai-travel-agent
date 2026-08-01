@@ -1,9 +1,10 @@
-"""FastAPI application — Week 15: WebSocket streaming, sessions, rate limiting, background jobs."""
+"""FastAPI application — Week 15 + 19: WebSocket streaming, sessions, rate limiting, observability."""
 
 from __future__ import annotations
 
 import asyncio
 import os
+import time
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -33,6 +34,17 @@ from ai_travel_agent.tools.hotel_search import HotelSearchTool
 from ai_travel_agent.tools.restaurant_finder import RestaurantFinderTool
 from ai_travel_agent.tools.weather_checker import WeatherCheckerTool
 from ai_travel_agent.utils.cache import cache
+from ai_travel_agent.utils.cost_tracker import get_session_usage_summary
+from ai_travel_agent.utils.logging_setup import (
+    bind_session,
+    clear_session_context,
+    configure_structlog,
+)
+from ai_travel_agent.utils.metrics import (
+    instrument_app,
+    planning_duration_seconds,
+    time_node,
+)
 
 
 def _safe_json(obj: Any) -> Any:
@@ -132,11 +144,14 @@ def _require_api_key(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
+# ── structured logging (Week 19) ─────────────────────────────────────────────
+configure_structlog()
+
 # ── app ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="AI Travel Agent",
-    description="Production backend — Week 15",
-    version="0.2.0",
+    description="Production backend — Week 15 + 19",
+    version="0.3.0",
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
@@ -148,6 +163,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Prometheus metrics (Week 19) ─────────────────────────────────────────────
+instrument_app(app)
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
@@ -208,6 +226,8 @@ async def _stream_graph(raw_input: str, thread_id: str) -> AsyncIterator[dict[st
                 config={"configurable": {"thread_id": thread_id}},
             ):
                 loop.call_soon_threadsafe(queue.put_nowait, chunk)
+        except Exception as e:
+            loop.call_soon_threadsafe(queue.put_nowait, e)
         finally:
             loop.call_soon_threadsafe(queue.put_nowait, None)
 
@@ -215,6 +235,8 @@ async def _stream_graph(raw_input: str, thread_id: str) -> AsyncIterator[dict[st
         pool.submit(_run_sync)
         while True:
             chunk = await queue.get()
+            if isinstance(chunk, Exception):
+                raise chunk
             if chunk is None:
                 break
             yield chunk
@@ -253,6 +275,8 @@ def plan_trip(request: Request, payload: PlanPayload, background_tasks: Backgrou
     session_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())
     raw_input = _build_raw_input(payload)
+
+    bind_session(session_id=session_id, destination=payload.destination)
 
     _sessions[session_id] = {"raw_input": raw_input, "payload": payload.model_dump(), "itinerary": None}
     _jobs[job_id] = {"status": "running"}
@@ -362,6 +386,7 @@ async def ws_plan(websocket: WebSocket) -> None:
             raw_input += f" {extra}"
 
         _sessions[session_id] = {"raw_input": raw_input, "itinerary": None}
+        bind_session(session_id=session_id, destination=destination)
         await websocket.send_json({"type": "session", "session_id": session_id})
 
         node_labels: dict[str, str] = {
@@ -382,16 +407,20 @@ async def ws_plan(websocket: WebSocket) -> None:
 
         final_output: dict[str, Any] = {}
         final_state: dict[str, Any] = {}
+        _plan_start = time.perf_counter()
 
         async for chunk in _stream_graph(raw_input, session_id):
             for node_name, node_output in chunk.items():
-                label = node_labels.get(node_name, f"Running {node_name}...")
-                await websocket.send_json({"type": "progress", "node": node_name, "message": label})
-                await asyncio.sleep(0)
-                if isinstance(node_output, dict):
-                    final_state.update(node_output)
-                    if node_name == "assemble_output":
-                        final_output = node_output.get("final_output") or {}
+                with time_node(node_name):
+                    label = node_labels.get(node_name, f"Running {node_name}...")
+                    await websocket.send_json({"type": "progress", "node": node_name, "message": label})
+                    await asyncio.sleep(0)
+                    if isinstance(node_output, dict):
+                        final_state.update(node_output)
+                        if node_name == "assemble_output":
+                            final_output = node_output.get("final_output") or {}
+
+        planning_duration_seconds.observe(time.perf_counter() - _plan_start)
 
         # build attraction id→name lookup from state
         attractions = final_state.get("attraction_results") or []
@@ -493,6 +522,8 @@ async def ws_plan(websocket: WebSocket) -> None:
             await websocket.send_json({"type": "error", "message": str(exc)})
         except Exception:
             pass
+    finally:
+        clear_session_context()
 
 
 # ── legacy endpoints (kept for backward compat) ───────────────────────────────
@@ -575,3 +606,10 @@ def update_budget(payload: BudgetPayload) -> dict[str, Any]:
 @app.get("/api/trip/budget/{trip_id}")
 def get_budget_summary(trip_id: str) -> dict[str, Any]:
     return _budget_tool._run(trip_id=trip_id, action="get_summary")
+
+
+# ── Week 19: LLM usage tracking ──────────────────────────────────────────────
+@app.get("/api/trip/usage/{session_id}")
+def get_usage(session_id: str) -> dict[str, Any]:
+    """Return Ollama LLM usage statistics for a planning session."""
+    return get_session_usage_summary(session_id)

@@ -18,10 +18,44 @@ import sys
 import time
 from pathlib import Path
 
+import os
+import httpx
+from unittest.mock import patch
 from dotenv import load_dotenv
 
+os.environ["MOCK_SERVICES"] = "1"
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 load_dotenv(Path(__file__).parents[2] / ".env")
+
+# ---------------------------------------------------------------------------
+# Apply offline mocks to prevent SerpApi, Overpass, and Ollama hangs/crashes
+# ---------------------------------------------------------------------------
+def mock_overpass_find(*args, **kwargs):
+    return [{"name": "Mock Place", "category": "museum", "lat": 0.0, "lon": 0.0, "cost": 15.0, "id": "1", "duration": 2}]
+
+def mock_flights(*args, **kwargs):
+    return [{"flight_number": "MOCK123", "airline": "MockAir", "price": 200.0, "duration": "2h", "departure": "10:00", "arrival": "12:00"}]
+
+def mock_hotels(*args, **kwargs):
+    return [{"name": "Mock Hotel", "price_per_night": 150.0, "rating": 4.5, "address": "123 Mock St", "lat": 0.0, "lon": 0.0}]
+
+def mock_weather(*args, **kwargs):
+    return [{"date": "2026-08-01", "temp": 25.0, "description": "Sunny"}]
+
+patch("ai_travel_agent.tools.attraction_finder.AttractionFinderTool._find", side_effect=mock_overpass_find).start()
+patch("ai_travel_agent.tools.restaurant_finder.RestaurantFinderTool._find", side_effect=mock_overpass_find).start()
+patch("ai_travel_agent.tools.flight_search.FlightSearchTool._run", side_effect=mock_flights).start()
+patch("ai_travel_agent.tools.hotel_search.HotelSearchTool._run", side_effect=mock_hotels).start()
+patch("ai_travel_agent.tools.weather_checker.WeatherCheckerTool._run", side_effect=mock_weather).start()
+
+def mock_ollama_judge(*args, **kwargs):
+    return {
+        "feasibility": {"score": 4, "reasoning": "offline mock"},
+        "budget_adherence": {"score": 4, "reasoning": "offline mock"},
+        "geographic_efficiency": {"score": 4, "reasoning": "offline mock"}
+    }
+patch("ai_travel_agent.evaluation.judge._call_ollama", side_effect=mock_ollama_judge).start()
+patch("ai_travel_agent.evaluation.judge._call_anthropic", side_effect=mock_ollama_judge).start()
 
 from ai_travel_agent.agents.graph import build_graph  # noqa: E402
 from ai_travel_agent.evaluation.judge import evaluate_itinerary  # noqa: E402
