@@ -69,9 +69,9 @@ class TestFullPlanningJourney:
                 break
             time.sleep(2)
 
-        assert status == "completed", (
-            f"Planning did not complete in time (last status: {status})"
-        )
+        assert (
+            status == "completed"
+        ), f"Planning did not complete in time (last status: {status})"
 
         # 3. Export — mirrors the "Download PDF" button
         export_resp = api.get(

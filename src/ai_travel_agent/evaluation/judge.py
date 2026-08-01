@@ -144,11 +144,7 @@ def _rule_based_scores(itinerary: dict[str, Any], trip_request: str) -> dict[str
             else (
                 4
                 if ratio <= 0.10
-                else 3
-                if ratio <= 0.20
-                else 2
-                if ratio <= 0.50
-                else 1
+                else 3 if ratio <= 0.20 else 2 if ratio <= 0.50 else 1
             )
         )
     else:
@@ -191,11 +187,7 @@ def _rule_based_scores(itinerary: dict[str, Any], trip_request: str) -> dict[str
         walking_balance = (
             5
             if variance <= 0.2
-            else 4
-            if variance <= 0.35
-            else 3
-            if variance <= 0.5
-            else 2
+            else 4 if variance <= 0.35 else 3 if variance <= 0.5 else 2
         )
     else:
         walking_balance = 4

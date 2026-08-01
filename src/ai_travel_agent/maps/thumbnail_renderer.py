@@ -66,7 +66,9 @@ def render_thumbnail_safe(
 
     try:
         return _render(html_path, output_png_path, viewport or DEFAULT_VIEWPORT)
-    except Exception as exc:  # noqa: BLE001 -- any Playwright/browser failure must not crash the graph
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- any Playwright/browser failure must not crash the graph
         logger.warning(
             "thumbnail rendering failed, continuing without it",
             extra={"error": str(exc)},

@@ -218,6 +218,6 @@ def test_must_sees_not_dropped_when_nice_to_haves_overflow():
     nice_scheduled = [a for a in all_acts if a.priority > 2]
 
     # Must-sees should be prioritised over nice-to-haves
-    assert len(must_see_scheduled) >= len(nice_scheduled), (
-        f"Expected more must-sees than nice-to-haves, got {len(must_see_scheduled)} vs {len(nice_scheduled)}"
-    )
+    assert len(must_see_scheduled) >= len(
+        nice_scheduled
+    ), f"Expected more must-sees than nice-to-haves, got {len(must_see_scheduled)} vs {len(nice_scheduled)}"

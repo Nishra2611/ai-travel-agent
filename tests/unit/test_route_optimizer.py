@@ -103,13 +103,13 @@ def test_20_scenario_benchmark_all_positive_improvement(optimizer):
         result = optimizer.optimize_day(hotel, activities, lookup, seed=seed)
         improvements.append(result.improvement_pct)
 
-    assert all(imp > 0 for imp in improvements), (
-        "every scenario should beat naive random ordering"
-    )
+    assert all(
+        imp > 0 for imp in improvements
+    ), "every scenario should beat naive random ordering"
     mean_improvement = sum(improvements) / len(improvements)
-    assert mean_improvement > 25.0, (
-        f"mean improvement {mean_improvement:.1f}% below documented floor"
-    )
+    assert (
+        mean_improvement > 25.0
+    ), f"mean improvement {mean_improvement:.1f}% below documented floor"
 
 
 def test_zero_activities_returns_trivial_result(optimizer):

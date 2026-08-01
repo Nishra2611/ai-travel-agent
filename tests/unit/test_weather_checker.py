@@ -90,9 +90,9 @@ def test_condition_is_capitalised(tool, monkeypatch):
         result = tool._run(city="London", days=3)
 
     for day in result:
-        assert day["condition"][0].isupper(), (
-            f"condition not capitalised: {day['condition']}"
-        )
+        assert day["condition"][
+            0
+        ].isupper(), f"condition not capitalised: {day['condition']}"
 
 
 def test_days_param_caps_result_length(tool, monkeypatch):

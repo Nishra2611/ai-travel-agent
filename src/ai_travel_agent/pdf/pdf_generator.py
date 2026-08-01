@@ -49,7 +49,9 @@ class _PDFGenerator:
                 "WeasyPrint is not installed (pip install weasyprint) or its "
                 "system dependencies (Cairo/Pango/GDK-Pixbuf) are missing"
             ) from exc
-        except Exception as exc:  # noqa: BLE001 -- surface as our own exception type, not weasyprint's
+        except (
+            Exception
+        ) as exc:  # noqa: BLE001 -- surface as our own exception type, not weasyprint's
             raise PDFGenerationError(f"PDF rendering failed: {exc}") from exc
 
         logger.info(

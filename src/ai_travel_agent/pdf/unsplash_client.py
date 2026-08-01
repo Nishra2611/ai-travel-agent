@@ -52,7 +52,9 @@ def get_destination_photo_safe(query: str, output_path: str | Path) -> Path | No
             logger.warning("no Unsplash results for query", extra={"query": query})
             return None
         return _download(image_url, Path(output_path))
-    except Exception as exc:  # noqa: BLE001 -- a missing cover photo must not block the PDF
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- a missing cover photo must not block the PDF
         logger.warning(
             "unsplash photo fetch failed, continuing without cover photo",
             extra={"error": str(exc)},

@@ -605,7 +605,9 @@ def build_geo_clusters(state: TravelState) -> dict[str, Any]:
             },
         )
         return {"geo_clusters": result.as_dict()}
-    except Exception as exc:  # noqa: BLE001 -- clustering failure must not break the graph
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- clustering failure must not break the graph
         logger.error("geo clustering failed", extra={"error": str(exc)})
         return {"geo_clusters": None}
 
@@ -832,7 +834,9 @@ def generate_map(state: TravelState) -> dict[str, Any]:
                 "thumbnail_path": str(actual_thumbnail) if actual_thumbnail else None,
             }
         }
-    except Exception as exc:  # noqa: BLE001 -- the map is a bonus artifact, not a required one
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- the map is a bonus artifact, not a required one
         logger.error("map generation failed", extra={"error": str(exc)})
         return {"map_output": None}
 
@@ -887,7 +891,9 @@ def generate_pdf(state: TravelState) -> dict[str, Any]:
     except PDFGenerationError as exc:
         logger.error("PDF generation failed", extra={"error": str(exc)})
         return {"pdf_output": {"pdf_path": None, "status": "failed", "error": str(exc)}}
-    except Exception as exc:  # noqa: BLE001 -- context-building bugs shouldn't crash the graph either
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 -- context-building bugs shouldn't crash the graph either
         logger.error("PDF context assembly failed", extra={"error": str(exc)})
         return {"pdf_output": {"pdf_path": None, "status": "failed", "error": str(exc)}}
 
