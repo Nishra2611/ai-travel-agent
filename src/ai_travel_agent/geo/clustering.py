@@ -1,4 +1,5 @@
 """DBSCAN-based POI clustering for grouping attractions by proximity."""
+
 from __future__ import annotations
 
 import math
@@ -23,7 +24,12 @@ def _dbscan(
                 continue
             dlat = math.radians(lat2 - lat1)
             dlng = math.radians(lng2 - lng1)
-            a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+            a = (
+                math.sin(dlat / 2) ** 2
+                + math.cos(math.radians(lat1))
+                * math.cos(math.radians(lat2))
+                * math.sin(dlng / 2) ** 2
+            )
             d = 6371.0 * 2 * math.asin(math.sqrt(a))
             if d <= eps_km:
                 result.append(j)

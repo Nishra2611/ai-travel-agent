@@ -89,7 +89,7 @@ MOCK_RESTAURANTS = [
 ]
 MOCK_WEATHER = [
     {
-        "date": f"2025-12-{10+i:02d}",
+        "date": f"2025-12-{10 + i:02d}",
         "temp_max": 12,
         "temp_min": 6,
         "description": "Clear",

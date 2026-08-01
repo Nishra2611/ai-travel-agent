@@ -10,6 +10,7 @@ description, location_name. So we reconstruct that context by keeping
 a lookup back to the original attraction dicts (same pattern
 ItineraryBuilder already uses in `_resolve_location`).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -31,7 +32,9 @@ CATEGORY_ENVIRONMENT: dict[str, str] = {
 }
 
 
-def build_attraction_index(attractions: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def build_attraction_index(
+    attractions: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
     """attraction_id -> original attraction dict, for opening-hours/category lookups."""
     return {a["id"]: a for a in attractions if a.get("id")}
 

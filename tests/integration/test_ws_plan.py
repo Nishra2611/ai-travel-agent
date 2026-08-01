@@ -7,6 +7,7 @@ is required.
 
 Run: pytest tests/integration/test_ws_plan.py -v
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -21,38 +22,55 @@ client = TestClient(app)
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
+
 def _fake_stream_chunks():
     """Simulate the graph.stream() generator that _stream_graph wraps."""
     yield {"parse_preferences": {"destination": "Paris", "days": 5, "budget": 1500}}
     yield {"search_flights": {"flight_results": []}}
-    yield {"find_attractions": {"attraction_results": [
-        {"id": "a1", "name": "Eiffel Tower", "category": "landmark"},
-    ]}}
-    yield {"build_itinerary": {"itinerary_result": {}}}
-    yield {"assemble_output": {
-        "final_output": {
-            "destination": "Paris",
-            "itinerary": {
-                "days": [
-                    {"day_number": 1, "activities": [
-                        {"name": "Eiffel Tower", "time_slot": "morning", "cost": 0}
-                    ]}
-                ]
-            },
-            "flights": [],
-            "hotels": [],
-            "weather": [],
-            "budget": {"total_budget": 1500, "spent_total": 0},
+    yield {
+        "find_attractions": {
+            "attraction_results": [
+                {"id": "a1", "name": "Eiffel Tower", "category": "landmark"},
+            ]
         }
-    }}
+    }
+    yield {"build_itinerary": {"itinerary_result": {}}}
+    yield {
+        "assemble_output": {
+            "final_output": {
+                "destination": "Paris",
+                "itinerary": {
+                    "days": [
+                        {
+                            "day_number": 1,
+                            "activities": [
+                                {
+                                    "name": "Eiffel Tower",
+                                    "time_slot": "morning",
+                                    "cost": 0,
+                                }
+                            ],
+                        }
+                    ]
+                },
+                "flights": [],
+                "hotels": [],
+                "weather": [],
+                "budget": {"total_budget": 1500, "spent_total": 0},
+            }
+        }
+    }
 
 
 # ── core WebSocket flow ─────────────────────────────────────────────────
 
+
 class TestWsPlan:
     def test_full_planning_flow(self):
         """Connect → send payload → receive session, progress*, done."""
-        with patch("ai_travel_agent.api.main._graph.stream", return_value=_fake_stream_chunks()):
+        with patch(
+            "ai_travel_agent.api.main._graph.stream", return_value=_fake_stream_chunks()
+        ):
             with client.websocket_connect("/ws/plan") as ws:
                 ws.send_json({"destination": "Paris", "days": 5, "budget": 1500})
 
@@ -80,7 +98,9 @@ class TestWsPlan:
 
     def test_session_stored_after_done(self):
         """After ws/plan completes, the session is stored for /export."""
-        with patch("ai_travel_agent.api.main._graph.stream", return_value=_fake_stream_chunks()):
+        with patch(
+            "ai_travel_agent.api.main._graph.stream", return_value=_fake_stream_chunks()
+        ):
             with client.websocket_connect("/ws/plan") as ws:
                 ws.send_json({"destination": "Paris", "days": 3, "budget": 1000})
 
@@ -95,7 +115,9 @@ class TestWsPlan:
                 assert session_id is not None
 
                 # /export should now work for this session
-                r = client.get("/export", params={"session_id": session_id, "fmt": "json"})
+                r = client.get(
+                    "/export", params={"session_id": session_id, "fmt": "json"}
+                )
                 assert r.status_code == 200
                 assert isinstance(r.json(), dict)
 
@@ -111,7 +133,9 @@ class TestWsPlanErrors:
 
     def test_graph_exception_returns_error(self):
         """If the graph raises, the WS should send an error message."""
-        with patch("ai_travel_agent.api.main._graph.stream", side_effect=RuntimeError("boom")):
+        with patch(
+            "ai_travel_agent.api.main._graph.stream", side_effect=RuntimeError("boom")
+        ):
             with client.websocket_connect("/ws/plan") as ws:
                 ws.send_json({"destination": "Tokyo", "days": 3, "budget": 2000})
                 messages = []
@@ -129,7 +153,9 @@ class TestWsPlanErrors:
 class TestWsPlanProgressMessages:
     def test_progress_contains_node_name(self):
         """Each progress message should include the node name."""
-        with patch("ai_travel_agent.api.main._graph.stream", return_value=_fake_stream_chunks()):
+        with patch(
+            "ai_travel_agent.api.main._graph.stream", return_value=_fake_stream_chunks()
+        ):
             with client.websocket_connect("/ws/plan") as ws:
                 ws.send_json({"destination": "Rome", "days": 4, "budget": 1800})
 

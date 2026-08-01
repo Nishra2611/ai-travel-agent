@@ -40,10 +40,7 @@ def avg_scores(rows: list[dict]) -> dict[str, float]:
                 totals[dim].append(float(row[dim]))
             except (ValueError, KeyError):
                 pass
-    return {
-        d: round(sum(v) / len(v), 2) if v else 0.0
-        for d, v in totals.items()
-    }
+    return {d: round(sum(v) / len(v), 2) if v else 0.0 for d, v in totals.items()}
 
 
 def avg_scores_by_category(rows: list[dict]) -> dict[str, dict[str, float]]:
@@ -79,31 +76,31 @@ def build_html(
     failures: list[tuple[str, float]],
 ) -> str:
     dim_bars = "\n".join(
-        f'<tr><td>{d}</td>'
-        f'<td><div class="bar" style="width:{avgs[d]/5*100:.0f}%"></div></td>'
-        f'<td>{avgs[d]:.2f}</td></tr>'
+        f"<tr><td>{d}</td>"
+        f'<td><div class="bar" style="width:{avgs[d] / 5 * 100:.0f}%"></div></td>'
+        f"<td>{avgs[d]:.2f}</td></tr>"
         for d in DIMENSIONS
     )
 
     cat_headers = "".join(f"<th>{c}</th>" for c in cat_avgs)
     cat_rows = "\n".join(
-        f'<tr><td>{d}</td>'
-        + "".join(f'<td>{cat_avgs[c].get(d, 0):.2f}</td>' for c in cat_avgs)
+        f"<tr><td>{d}</td>"
+        + "".join(f"<td>{cat_avgs[c].get(d, 0):.2f}</td>" for c in cat_avgs)
         + "</tr>"
         for d in DIMENSIONS
     )
 
     failure_rows = "\n".join(
-        f'<tr><td>{rank}</td><td>{dim}</td><td>{score:.2f}</td>'
-        f'<td>{IMPROVEMENT_TASKS.get(dim, "")}</td></tr>'
+        f"<tr><td>{rank}</td><td>{dim}</td><td>{score:.2f}</td>"
+        f"<td>{IMPROVEMENT_TASKS.get(dim, '')}</td></tr>"
         for rank, (dim, score) in enumerate(failures, 1)
     )
 
     scenario_rows = "\n".join(
-        f'<tr><td>{r["id"]}</td><td>{r["category"]}</td><td>{r["destination"]}</td>'
-        f'<td>{r["duration_days"]}</td><td>${r["budget_usd"]}</td>'
-        f'<td>{r["planning_time_ms"]}</td>'
-        + "".join(f'<td>{r.get(d, "")}</td>' for d in DIMENSIONS)
+        f"<tr><td>{r['id']}</td><td>{r['category']}</td><td>{r['destination']}</td>"
+        f"<td>{r['duration_days']}</td><td>${r['budget_usd']}</td>"
+        f"<td>{r['planning_time_ms']}</td>"
+        + "".join(f"<td>{r.get(d, '')}</td>" for d in DIMENSIONS)
         + "</tr>"
         for r in rows
     )
@@ -173,7 +170,9 @@ def main() -> None:
 
     print("\n=== Top 5 Failure Modes ===")
     for rank, (dim, score) in enumerate(failures, 1):
-        print(f"  {rank}. {dim} (avg={score:.2f}): {IMPROVEMENT_TASKS.get(dim, '')[:80]}")
+        print(
+            f"  {rank}. {dim} (avg={score:.2f}): {IMPROVEMENT_TASKS.get(dim, '')[:80]}"
+        )
 
     failure_data = [
         {

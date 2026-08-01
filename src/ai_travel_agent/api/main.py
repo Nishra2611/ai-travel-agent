@@ -51,6 +51,7 @@ def _safe_json(obj: Any) -> Any:
     """Recursively convert any non-JSON-serializable values to strings."""
     from datetime import date, datetime
     from enum import Enum
+
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
     if isinstance(obj, Enum):
@@ -139,7 +140,9 @@ _API_KEY = os.getenv("API_KEY", "dev-key-change-me")
 
 
 def _require_api_key(request: Request) -> None:
-    key = request.headers.get("x-api-key") or request.headers.get("authorization", "").removeprefix("Bearer ")
+    key = request.headers.get("x-api-key") or request.headers.get(
+        "authorization", ""
+    ).removeprefix("Bearer ")
     if key != _API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
@@ -211,7 +214,9 @@ def _run_graph(raw_input: str, thread_id: str) -> dict[str, Any]:
     return result
 
 
-async def _stream_graph(raw_input: str, thread_id: str) -> AsyncIterator[dict[str, Any]]:
+async def _stream_graph(
+    raw_input: str, thread_id: str
+) -> AsyncIterator[dict[str, Any]]:
     """Yield each node's output as it completes — uses sync .stream() in a thread."""
     import asyncio
     from concurrent.futures import ThreadPoolExecutor
@@ -246,7 +251,11 @@ def _background_plan(job_id: str, raw_input: str, thread_id: str) -> None:
     try:
         result = _run_graph(raw_input, thread_id)
         itinerary = (result.get("final_output") or {}).get("itinerary") or {}
-        _jobs[job_id] = {"status": "completed", "result": itinerary, "thread_id": thread_id}
+        _jobs[job_id] = {
+            "status": "completed",
+            "result": itinerary,
+            "thread_id": thread_id,
+        }
     except Exception as exc:
         _jobs[job_id] = {"status": "failed", "error": str(exc)}
 
@@ -270,7 +279,9 @@ def cache_health() -> dict[str, Any]:
 # ── Week 15: POST /plan ───────────────────────────────────────────────────────
 @app.post("/plan")
 @limiter.limit("20/minute")
-def plan_trip(request: Request, payload: PlanPayload, background_tasks: BackgroundTasks) -> dict[str, Any]:
+def plan_trip(
+    request: Request, payload: PlanPayload, background_tasks: BackgroundTasks
+) -> dict[str, Any]:
     """Start async planning. Returns session_id + job_id for polling."""
     session_id = str(uuid.uuid4())
     job_id = str(uuid.uuid4())
@@ -278,7 +289,11 @@ def plan_trip(request: Request, payload: PlanPayload, background_tasks: Backgrou
 
     bind_session(session_id=session_id, destination=payload.destination)
 
-    _sessions[session_id] = {"raw_input": raw_input, "payload": payload.model_dump(), "itinerary": None}
+    _sessions[session_id] = {
+        "raw_input": raw_input,
+        "payload": payload.model_dump(),
+        "itinerary": None,
+    }
     _jobs[job_id] = {"status": "running"}
 
     background_tasks.add_task(_background_plan, job_id, raw_input, session_id)
@@ -297,7 +312,9 @@ def job_status(job_id: str) -> dict[str, Any]:
 # ── Week 15: POST /refine ─────────────────────────────────────────────────────
 @app.post("/refine")
 @limiter.limit("20/minute")
-def refine_trip(request: Request, payload: RefinePayload, background_tasks: BackgroundTasks) -> dict[str, Any]:
+def refine_trip(
+    request: Request, payload: RefinePayload, background_tasks: BackgroundTasks
+) -> dict[str, Any]:
     """Refine an existing itinerary with a natural-language instruction."""
     session = _sessions.get(payload.session_id)
     if not session:
@@ -349,8 +366,11 @@ def export_itinerary(
             else:
                 lines.append(str(activities))
         md = "\n".join(lines)
-        return Response(content=md, media_type="text/markdown",
-                        headers={"Content-Disposition": "attachment; filename=itinerary.md"})
+        return Response(
+            content=md,
+            media_type="text/markdown",
+            headers={"Content-Disposition": "attachment; filename=itinerary.md"},
+        )
 
     # pdf
     try:
@@ -361,7 +381,9 @@ def export_itinerary(
             headers={"Content-Disposition": "attachment; filename=itinerary.pdf"},
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"PDF generation failed: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"PDF generation failed: {exc}"
+        ) from exc
 
 
 # ── Week 15: WebSocket /ws/plan ───────────────────────────────────────────────
@@ -377,7 +399,9 @@ async def ws_plan(websocket: WebSocket) -> None:
         extra = data.get("extra", "")
 
         if not destination:
-            await websocket.send_json({"type": "error", "message": "destination required"})
+            await websocket.send_json(
+                {"type": "error", "message": "destination required"}
+            )
             return
 
         session_id = str(uuid.uuid4())
@@ -413,7 +437,9 @@ async def ws_plan(websocket: WebSocket) -> None:
             for node_name, node_output in chunk.items():
                 with time_node(node_name):
                     label = node_labels.get(node_name, f"Running {node_name}...")
-                    await websocket.send_json({"type": "progress", "node": node_name, "message": label})
+                    await websocket.send_json(
+                        {"type": "progress", "node": node_name, "message": label}
+                    )
                     await asyncio.sleep(0)
                     if isinstance(node_output, dict):
                         final_state.update(node_output)
@@ -424,8 +450,18 @@ async def ws_plan(websocket: WebSocket) -> None:
 
         # build attraction id→name lookup from state
         attractions = final_state.get("attraction_results") or []
-        attr_map = {a.get("id", ""): a.get("name", "Activity") for a in attractions if a.get("id")}
-        attr_map.update({a.get("name", ""): a.get("name", "Activity") for a in attractions if a.get("name")})
+        attr_map = {
+            a.get("id", ""): a.get("name", "Activity")
+            for a in attractions
+            if a.get("id")
+        }
+        attr_map.update(
+            {
+                a.get("name", ""): a.get("name", "Activity")
+                for a in attractions
+                if a.get("name")
+            }
+        )
 
         # normalize itinerary days → {"Day 1": ["morning: Name ($cost)", ...]}
         raw_itin = final_output.get("itinerary") or {}
@@ -436,7 +472,9 @@ async def ws_plan(websocket: WebSocket) -> None:
                 acts = day.get("activities") or []
                 lines = []
                 for a in acts:
-                    name = a.get("name") or attr_map.get(a.get("attraction_id", ""), "Activity")
+                    name = a.get("name") or attr_map.get(
+                        a.get("attraction_id", ""), "Activity"
+                    )
                     slot = a.get("time_slot", "")
                     slot_str = slot.value if hasattr(slot, "value") else str(slot)
                     cost = a.get("cost") or 0
@@ -446,43 +484,51 @@ async def ws_plan(websocket: WebSocket) -> None:
                     lines = ["Free exploration"]
                 normalized[f"Day {day_num}"] = lines
         elif isinstance(raw_itin, dict):
-            normalized = {k: v if isinstance(v, list) else [str(v)] for k, v in raw_itin.items()}
+            normalized = {
+                k: v if isinstance(v, list) else [str(v)] for k, v in raw_itin.items()
+            }
 
         # clean flights for display
         flights_clean = []
         for f in (final_output.get("flights") or [])[:3]:
             segs = f.get("segments") or []
             seg = segs[0] if segs else {}
-            flights_clean.append({
-                "airline": seg.get("airline", "Flight"),
-                "from": seg.get("departure_airport", ""),
-                "to": seg.get("arrival_airport", ""),
-                "price": f.get("total_price_usd", 0),
-                "duration": f.get("total_duration_minutes", 0),
-                "stops": f.get("num_stops", 0),
-            })
+            flights_clean.append(
+                {
+                    "airline": seg.get("airline", "Flight"),
+                    "from": seg.get("departure_airport", ""),
+                    "to": seg.get("arrival_airport", ""),
+                    "price": f.get("total_price_usd", 0),
+                    "duration": f.get("total_duration_minutes", 0),
+                    "stops": f.get("num_stops", 0),
+                }
+            )
 
         # clean hotels for display
         hotels_clean = []
         for h in (final_output.get("hotels") or [])[:3]:
-            hotels_clean.append({
-                "name": h.get("name", "Hotel"),
-                "stars": h.get("star_rating", 0),
-                "rating": h.get("review_score", 0),
-                "price_per_night": h.get("price_per_night_usd", 0),
-                "amenities": (h.get("amenities") or [])[:4],
-            })
+            hotels_clean.append(
+                {
+                    "name": h.get("name", "Hotel"),
+                    "stars": h.get("star_rating", 0),
+                    "rating": h.get("review_score", 0),
+                    "price_per_night": h.get("price_per_night_usd", 0),
+                    "amenities": (h.get("amenities") or [])[:4],
+                }
+            )
 
         # clean weather
         weather_clean = []
         for w in (final_output.get("weather") or [])[:7]:
-            weather_clean.append({
-                "date": str(w.get("date", "")),
-                "condition": w.get("condition", w.get("description", "")),
-                "temp_max": w.get("temp_max", w.get("temperature", "")),
-                "temp_min": w.get("temp_min", ""),
-                "rain": w.get("rain_chance_pct", 0),
-            })
+            weather_clean.append(
+                {
+                    "date": str(w.get("date", "")),
+                    "condition": w.get("condition", w.get("description", "")),
+                    "temp_max": w.get("temp_max", w.get("temperature", "")),
+                    "temp_min": w.get("temp_min", ""),
+                    "rain": w.get("rain_chance_pct", 0),
+                }
+            )
 
         # budget
         budget_raw = final_output.get("budget") or {}
@@ -497,18 +543,20 @@ async def ws_plan(websocket: WebSocket) -> None:
         # if itinerary is empty, build a placeholder so export always works
         if not normalized:
             num_days = int(data.get("days", 5))
-            normalized = {f"Day {i+1}": ["Free exploration"] for i in range(num_days)}
+            normalized = {f"Day {i + 1}": ["Free exploration"] for i in range(num_days)}
 
-        payload_out = _safe_json({
-            "type": "done",
-            "session_id": session_id,
-            "destination": dest,
-            "itinerary": normalized,
-            "flights": flights_clean,
-            "hotels": hotels_clean,
-            "weather": weather_clean,
-            "budget": budget_clean,
-        })
+        payload_out = _safe_json(
+            {
+                "type": "done",
+                "session_id": session_id,
+                "destination": dest,
+                "itinerary": normalized,
+                "flights": flights_clean,
+                "hotels": hotels_clean,
+                "weather": weather_clean,
+                "budget": budget_clean,
+            }
+        )
         # store BEFORE sending so /export is ready the moment frontend receives "done"
         _sessions[session_id]["itinerary"] = normalized
         _sessions[session_id]["destination"] = dest
@@ -537,7 +585,9 @@ def plan_trip_legacy(request: Request, payload: dict[str, Any]) -> dict[str, Any
     result = _run_graph(raw, thread_id)
     itinerary = (result.get("final_output") or {}).get("itinerary") or {}
     if not itinerary:
-        raise HTTPException(status_code=500, detail=result.get("error", "planning failed"))
+        raise HTTPException(
+            status_code=500, detail=result.get("error", "planning failed")
+        )
     return {"thread_id": thread_id, "itinerary": itinerary}
 
 
@@ -560,25 +610,43 @@ def search_flights(
 
 @app.get("/api/hotels")
 def search_hotels(
-    city: str, check_in: str, check_out: str,
+    city: str,
+    check_in: str,
+    check_out: str,
     adults: int = 2,
     max_price_per_night: float | None = None,
     min_rating: float | None = None,
     hotel_class: str | None = None,
 ) -> dict[str, Any]:
-    result = hotel_tool._run(city=city, check_in=check_in, check_out=check_out,
-                              adults=adults, max_price_per_night=max_price_per_night,
-                              min_rating=min_rating, hotel_class=hotel_class)
-    return {"city": city, "check_in": check_in, "check_out": check_out,
-            "adults": adults, "count": len(result), "results": result}
+    result = hotel_tool._run(
+        city=city,
+        check_in=check_in,
+        check_out=check_out,
+        adults=adults,
+        max_price_per_night=max_price_per_night,
+        min_rating=min_rating,
+        hotel_class=hotel_class,
+    )
+    return {
+        "city": city,
+        "check_in": check_in,
+        "check_out": check_out,
+        "adults": adults,
+        "count": len(result),
+        "results": result,
+    }
 
 
 @app.get("/api/trip/attractions")
-def get_attractions(city: str, country: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
+def get_attractions(
+    city: str, country: str | None = None, limit: int = 10
+) -> list[dict[str, Any]]:
     try:
         return _attraction_tool._run(city=city, country=country, limit=limit)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"attraction lookup failed: {exc}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"attraction lookup failed: {exc}"
+        ) from exc
 
 
 @app.get("/api/trip/weather")
@@ -588,14 +656,24 @@ def get_weather(city: str, days: int = 7) -> list[dict[str, Any]]:
 
 @app.get("/api/trip/restaurants")
 def get_restaurants(
-    city: str, cuisine: str | None = None,
-    budget: str | None = None, min_rating: float = 0.0, limit: int = 10,
+    city: str,
+    cuisine: str | None = None,
+    budget: str | None = None,
+    min_rating: float = 0.0,
+    limit: int = 10,
 ) -> list[dict[str, Any]]:
     try:
-        return _restaurant_tool._run(city=city, cuisine=cuisine, budget=budget,
-                                      min_rating=min_rating, limit=limit)
+        return _restaurant_tool._run(
+            city=city,
+            cuisine=cuisine,
+            budget=budget,
+            min_rating=min_rating,
+            limit=limit,
+        )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"restaurant lookup failed: {exc}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"restaurant lookup failed: {exc}"
+        ) from exc
 
 
 @app.post("/api/trip/budget")

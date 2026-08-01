@@ -18,6 +18,7 @@ Usage in api/main.py (see WEEK17_18_19_GUIDE.md for the exact patch):
     # inside /plan, /ws/plan, etc.
     bind_session(session_id=session_id)
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,13 +42,18 @@ def configure_structlog(json_output: bool = True) -> None:
     ]
 
     structlog.configure(
-        processors=shared_processors + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
+        processors=shared_processors
+        + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
 
-    renderer = structlog.processors.JSONRenderer() if json_output else structlog.dev.ConsoleRenderer()
+    renderer = (
+        structlog.processors.JSONRenderer()
+        if json_output
+        else structlog.dev.ConsoleRenderer()
+    )
     formatter = structlog.stdlib.ProcessorFormatter(
         processor=renderer,
         foreign_pre_chain=shared_processors,

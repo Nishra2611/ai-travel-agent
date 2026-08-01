@@ -18,6 +18,7 @@ Add to pyproject.toml:
     prometheus-fastapi-instrumentator = ">=7.0.0,<8.0.0"
     prometheus-client = ">=0.20.0,<1.0.0"
 """
+
 from __future__ import annotations
 
 import time
@@ -28,10 +29,13 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 # ── HTTP-level (automatic) ───────────────────────────────────────────────
 
+
 def instrument_app(app) -> None:
     """Call once in api/main.py: Instrumentator().instrument(app).expose(app)
     equivalent, wrapped so main.py only needs one import."""
-    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+    Instrumentator().instrument(app).expose(
+        app, endpoint="/metrics", include_in_schema=False
+    )
 
 
 # ── LangGraph node-level (manual, called from _stream_graph) ────────────
@@ -77,8 +81,8 @@ ollama_request_seconds = Histogram(
 @contextmanager
 def time_node(node_name: str):
     """Wrap a single node's execution during streaming:
-        with time_node(node_name):
-            ... process node_output ...
+    with time_node(node_name):
+        ... process node_output ...
     """
     start = time.perf_counter()
     error = False
@@ -88,7 +92,9 @@ def time_node(node_name: str):
         error = True
         raise
     finally:
-        node_duration_seconds.labels(node_name=node_name).observe(time.perf_counter() - start)
+        node_duration_seconds.labels(node_name=node_name).observe(
+            time.perf_counter() - start
+        )
         tool_call_total.labels(node_name=node_name).inc()
         if error:
             tool_error_total.labels(node_name=node_name).inc()

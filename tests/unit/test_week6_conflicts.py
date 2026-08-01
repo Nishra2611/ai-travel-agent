@@ -92,7 +92,6 @@ def make_itin(days: list[DayPlan], total_budget: float = 5000.0) -> Itinerary:
 
 
 class TestConflictDetection(unittest.TestCase):
-
     def setUp(self):
         self.detector = ConflictDetector(travel_time_fn=flat_travel)
 

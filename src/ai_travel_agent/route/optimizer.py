@@ -1,4 +1,5 @@
 """Nearest-neighbor + 2-opt route optimizer for a list of attractions."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -19,7 +20,9 @@ def _nn_route(matrix: list[list[float]]) -> list[int]:
     return route
 
 
-def _two_opt(route: list[int], matrix: list[list[float]], max_iter: int = 100) -> list[int]:
+def _two_opt(
+    route: list[int], matrix: list[list[float]], max_iter: int = 100
+) -> list[int]:
     """2-opt improvement on a route."""
     best = route[:]
     improved = True
@@ -55,7 +58,9 @@ def total_route_distance_km(attractions: list[dict[str, Any]]) -> float:
     for i in range(len(attractions) - 1):
         a, b = attractions[i], attractions[i + 1]
         total += cached_distance_km(
-            float(a.get("lat", 0)), float(a.get("lng", 0)),
-            float(b.get("lat", 0)), float(b.get("lng", 0)),
+            float(a.get("lat", 0)),
+            float(a.get("lng", 0)),
+            float(b.get("lat", 0)),
+            float(b.get("lng", 0)),
         )
     return total

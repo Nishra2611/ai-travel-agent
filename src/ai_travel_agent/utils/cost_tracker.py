@@ -13,6 +13,7 @@ Uses the same Redis client pattern as budget_tracker.py
 (ai_travel_agent.utils.cache.get_redis_client), so it persists across
 requests the same way your budget ledger does.
 """
+
 from __future__ import annotations
 
 import json
@@ -63,7 +64,9 @@ def track_ollama_call(
         raw = redis.get(key)
         records: list[dict[str, Any]] = json.loads(raw) if raw else []
         records.append(asdict(record))
-        redis.set(key, json.dumps(records), ex=86400)  # 24h TTL, matches session lifetime
+        redis.set(
+            key, json.dumps(records), ex=86400
+        )  # 24h TTL, matches session lifetime
     except Exception as exc:
         logger.warning("Could not persist LLM usage record: %s", exc)
 
@@ -116,4 +119,6 @@ class TimedOllamaCall:
 
     def __exit__(self, *exc_info) -> None:
         self.duration_seconds = time.perf_counter() - self._start
-        track_ollama_call(self.session_id, self.node_name, self.model, self.duration_seconds)
+        track_ollama_call(
+            self.session_id, self.node_name, self.model, self.duration_seconds
+        )

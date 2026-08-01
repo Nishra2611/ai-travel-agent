@@ -109,9 +109,7 @@ def get_distance_matrix_safe(
 
     try:
         return _osrm_table_call(points, profile)
-    except (
-        Exception
-    ) as exc:  # noqa: BLE001 -- deliberate: any failure mode falls back silently
+    except Exception as exc:  # noqa: BLE001 -- deliberate: any failure mode falls back silently
         logger.warning(
             "OSRM table call failed, falling back to haversine",
             extra={"error": str(exc)},

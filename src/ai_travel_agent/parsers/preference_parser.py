@@ -157,7 +157,9 @@ class PreferenceParserTool(BaseTravelTool):
             nums = re.findall(r"\b(\d{3,6})\b", text)
             candidates = [n for n in nums if n != str(days)]
             if candidates:
-                m = type("M", (), {"group": lambda self, x: candidates[-1]})()  # fake match
+                m = type(
+                    "M", (), {"group": lambda self, x: candidates[-1]}
+                )()  # fake match
         if m:
             budget = float(m.group(1).replace(",", ""))
 
@@ -167,7 +169,12 @@ class PreferenceParserTool(BaseTravelTool):
         if m:
             candidate = m.group(1).strip()
             # remove trailing common words
-            candidate = re.sub(r"\s*(trip|travel|visit|holiday|vacation|tour)\s*$", "", candidate, flags=re.I).strip()
+            candidate = re.sub(
+                r"\s*(trip|travel|visit|holiday|vacation|tour)\s*$",
+                "",
+                candidate,
+                flags=re.I,
+            ).strip()
             if candidate:
                 destination = candidate.title()
 
@@ -186,7 +193,12 @@ class PreferenceParserTool(BaseTravelTool):
             raw_input=user_input,
             confidence_score=0.5,
         )
-        logger.info("Fallback parsed: destination=%s days=%s budget=%s", destination, days, budget)
+        logger.info(
+            "Fallback parsed: destination=%s days=%s budget=%s",
+            destination,
+            days,
+            budget,
+        )
         return prefs.model_dump()
 
     # not used but satisfies BaseTravelTool abstract methods
