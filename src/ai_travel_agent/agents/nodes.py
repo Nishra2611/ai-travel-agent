@@ -509,7 +509,6 @@ def _extract_actual_spend(
 
     for day in itinerary.get("days", []):
         for activity in day.get("activities", []):
-
             if activity.get("category") == "activity":
                 activities_cost += activity.get(
                     "cost",
@@ -621,7 +620,6 @@ def _collect_points(state: TravelState) -> list[GeoPoint]:
         state.get("attraction_results") or state.get("attractions") or [],
     )
     for attraction in attractions:
-
         # for attraction in state.get("attractions") or []:
         if (
             attraction.get("latitude") is not None
@@ -642,7 +640,6 @@ def _collect_points(state: TravelState) -> list[GeoPoint]:
     )
 
     for restaurant in restaurants:
-
         # for restaurant in state.get("restaurants") or []:
         if (
             restaurant.get("latitude") is not None
@@ -758,7 +755,7 @@ def _extract_hotel_point(state: TravelState) -> GeoPoint | None:
 
 
 def _extract_activity_points(
-    day: dict[str, Any]
+    day: dict[str, Any],
 ) -> tuple[list[GeoPoint], dict[str, dict[str, Any]]]:
     """
     Returns (geocoded points for this day, id -> original activity dict)

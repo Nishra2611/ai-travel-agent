@@ -74,7 +74,6 @@ def make_itin(days: list[DayPlan]) -> Itinerary:
 
 
 class TestWeatherScoring(unittest.TestCase):
-
     def test_clear_mild_day_is_good(self):
         f = WeatherForecast(
             the_date=date(2026, 8, 1),
@@ -120,7 +119,6 @@ class TestWeatherScoring(unittest.TestCase):
 
 
 class TestWeatherAwareScheduling(unittest.TestCase):
-
     def setUp(self):
         self.forecasts = [
             WeatherForecast(

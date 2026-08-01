@@ -107,11 +107,15 @@ class UnifiedOptimizer:
             walking_variance_pct=variance_pct,
         )
 
-    def _apply_priority_scheduling(self, itinerary: Itinerary, strictness: float) -> None:
+    def _apply_priority_scheduling(
+        self, itinerary: Itinerary, strictness: float
+    ) -> None:
         effective_threshold = MUST_SEE_MAX + round((1 - strictness) * 3)
         for day in itinerary.days:
             must_sees = [a for a in day.activities if a.priority <= effective_threshold]
-            nice_to_haves = [a for a in day.activities if a.priority > effective_threshold]
+            nice_to_haves = [
+                a for a in day.activities if a.priority > effective_threshold
+            ]
             for act in must_sees:
                 act.locked = True
             day.activities = must_sees + sorted(nice_to_haves, key=lambda a: a.priority)
@@ -123,19 +127,22 @@ class UnifiedOptimizer:
             if not conflicts:
                 break
             must_see_conflicts = [
-                c for c in conflicts
+                c
+                for c in conflicts
                 if c.conflict_type == ConflictType.BUDGET_OVERRUN
                 and self._involves_must_see(itinerary, c.activity_ids)
             ]
             if must_see_conflicts:
                 resolved = self._backtrack_must_see(itinerary, must_see_conflicts[0])
                 if not resolved:
-                    self._backtrack_events.append(BacktrackEvent(
-                        day_number=must_see_conflicts[0].day_number,
-                        activity_title="unknown",
-                        reason=must_see_conflicts[0].message,
-                        resolved=False,
-                    ))
+                    self._backtrack_events.append(
+                        BacktrackEvent(
+                            day_number=must_see_conflicts[0].day_number,
+                            activity_title="unknown",
+                            reason=must_see_conflicts[0].message,
+                            resolved=False,
+                        )
+                    )
                     break
                 attempts += 1
                 continue
@@ -152,22 +159,25 @@ class UnifiedOptimizer:
     def _backtrack_must_see(self, itinerary: Itinerary, conflict: Any) -> bool:
         for day in itinerary.days:
             candidates = [
-                a for a in day.activities
-                if not a.locked and a.priority > MUST_SEE_MAX
+                a for a in day.activities if not a.locked and a.priority > MUST_SEE_MAX
             ]
             if not candidates:
                 continue
             drop = max(candidates, key=lambda a: a.estimated_cost_usd)
             day.activities.remove(drop)
-            self._backtrack_events.append(BacktrackEvent(
-                day_number=day.day_number,
-                activity_title=drop.title,
-                reason=f"Backtrack: dropped nice-to-have to protect must-see. Conflict: {conflict.message}",
-                resolved=True,
-            ))
+            self._backtrack_events.append(
+                BacktrackEvent(
+                    day_number=day.day_number,
+                    activity_title=drop.title,
+                    reason=f"Backtrack: dropped nice-to-have to protect must-see. Conflict: {conflict.message}",
+                    resolved=True,
+                )
+            )
             logger.info(
                 "[backtrack] day=%d dropped '%s' ($%.0f) to protect must-see",
-                day.day_number, drop.title, drop.estimated_cost_usd,
+                day.day_number,
+                drop.title,
+                drop.estimated_cost_usd,
             )
             return True
         return False
@@ -184,8 +194,16 @@ class UnifiedOptimizer:
         if abs(heavy_num - light_num) <= 1:
             heavy_day = next(d for d in itinerary.days if d.day_number == heavy_num)
             light_day = next(d for d in itinerary.days if d.day_number == light_num)
-            swappable_heavy = [a for a in heavy_day.activities if not a.locked and a.activity_category == "attraction"]
-            swappable_light = [a for a in light_day.activities if not a.locked and a.activity_category == "attraction"]
+            swappable_heavy = [
+                a
+                for a in heavy_day.activities
+                if not a.locked and a.activity_category == "attraction"
+            ]
+            swappable_light = [
+                a
+                for a in light_day.activities
+                if not a.locked and a.activity_category == "attraction"
+            ]
             if swappable_heavy and swappable_light:
                 act_h = swappable_heavy[-1]
                 act_l = swappable_light[-1]
@@ -207,13 +225,17 @@ class UnifiedOptimizer:
             try:
                 matrix = get_distance_matrix_safe(points, profile="walking")
                 lookup = build_distance_lookup(matrix)
-                total = float(sum(
-                    lookup(points[i].id, points[i + 1].id)
-                    for i in range(len(points) - 1)
-                ))
+                total = float(
+                    sum(
+                        lookup(points[i].id, points[i + 1].id)
+                        for i in range(len(points) - 1)
+                    )
+                )
                 result[day.day_number] = total
             except Exception as exc:
-                logger.warning("Distance matrix failed for day %d: %s", day.day_number, exc)
+                logger.warning(
+                    "Distance matrix failed for day %d: %s", day.day_number, exc
+                )
                 result[day.day_number] = 0.0
         return result
 
@@ -222,12 +244,14 @@ class UnifiedOptimizer:
         points = []
         for i, act in enumerate(day.activities):
             if act.latitude is not None and act.longitude is not None:
-                points.append(GeoPoint(
-                    id=act.attraction_id or act.title or f"act_{i}",
-                    name=act.title,
-                    latitude=act.latitude,
-                    longitude=act.longitude,
-                ))
+                points.append(
+                    GeoPoint(
+                        id=act.attraction_id or act.title or f"act_{i}",
+                        name=act.title,
+                        latitude=act.latitude,
+                        longitude=act.longitude,
+                    )
+                )
         return points
 
     @staticmethod
@@ -238,7 +262,7 @@ class UnifiedOptimizer:
         if mean == 0:
             return 0.0
         variance = float(sum((v - mean) ** 2 for v in values)) / len(values)
-        return float(variance ** 0.5) / mean
+        return float(variance**0.5) / mean
 
     @staticmethod
     def _must_see_inclusion_rate(itinerary: Itinerary) -> float:

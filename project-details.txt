@@ -1,0 +1,97 @@
+# Autonomous AI Travel Planning Agent - Project Overview
+
+## 1. Project Structure & Architecture
+The AI Travel Planning Agent is a full-stack application leveraging a Python/FastAPI backend powered by LangGraph for agentic workflow orchestration, and a React frontend for the user interface.
+
+### Backend (`src/ai_travel_agent`)
+- `api/main.py`: The FastAPI entry point. Exposes REST endpoints (e.g., `/health`, `/export`) and a WebSocket route (`/ws/plan`) for streaming real-time planning progress to the UI.
+- `agents/graph.py` & `nodes.py`: The core LangGraph state machine. It orchestrates a multi-step pipeline (parse -> budget -> flights/hotels/attractions -> geo clustering -> route optimization -> evaluate -> PDF/Map generation).
+- `tools/`: Interfaces with external APIs (SerpApi for flights/hotels, OpenWeatherMap for weather, OSRM for travel times).
+- `optimizer/itinerary_builder.py`: The core logic that assembles a multi-day itinerary based on the agent's findings, checking for time and budget conflicts.
+- `services/`: Contains specialized generators (e.g., `travel_map_generator.py` for Folium maps, `pdf_renderer.py` for PDF exports).
+- `utils/`: Contains monitoring (Prometheus), logging (structlog), caching (Redis), and LLM cost tracking utilities.
+
+### Frontend (`frontend/`)
+- Built with React, Vite, and Tailwind CSS (or similar styling).
+- Uses `react-leaflet` to display the interactive travel map.
+- Connects to the backend via WebSockets (`/ws/plan`) to stream progress bars and chat responses.
+
+## 2. Main Functions
+- `plan_trip` (WebSocket flow): Receives a user prompt like "Paris 5 days culture and food under $3000", parses it via an LLM, and begins executing the LangGraph nodes.
+- `_stream_graph`: The async generator that steps through the LangGraph state machine, yielding progress updates ("Searching flights...", "Optimizing routes...") back to the frontend.
+- `build_itinerary`: LangGraph node that attempts to slot attractions and meals into a physical daily schedule.
+- `optimize_routes`: Week 10 feature that solves the Traveling Salesperson Problem (TSP) using a Distance Matrix to reorder activities optimally.
+- `evaluate_budget`: Week 12 feature that acts as a "Judge" LLM to ensure the final itinerary is logical and under budget.
+
+---
+
+## 3. Testing Commands (Weeks 10 - 19)
+
+I have successfully verified that the frontend and backend are both running properly. You can test each specific week's components using the commands below. Ensure you are in the project root (`d:\study\ai-travel-agent`) when running these commands.
+
+**Week 10: Route Optimization (TSP Solver)**
+Verify the OSRM distance matrix client and route optimization logic:
+```bash
+poetry run pytest tests/unit/test_route_optimizer.py tests/integration/test_route_integration.py -v
+```
+
+**Week 11: Full Trip Planner Optimizer**
+Test the 10 diverse, full-trip edge cases (budget backpacker, luxury family, etc.):
+```bash
+poetry run pytest tests/integration/test_optimizer_scenarios.py -v
+```
+
+**Week 12: Itinerary Evaluator (Judge)**
+Run the baseline metrics evaluation script to test LLM generation quality:
+```bash
+poetry run python tests/evaluation/run_baseline.py
+```
+
+**Week 13: Interactive Map Generation**
+Test the Folium map generation and thumbnail rendering nodes:
+```bash
+poetry run pytest tests/unit/test_travel_map_generator.py tests/integration/test_map_integration.py -v
+```
+
+**Week 14: PDF Report Export**
+Test the FPDF2 generation, QR codes, and Unsplash image fetching:
+```bash
+poetry run pytest tests/unit/test_build_pdf_node.py tests/integration/test_pdf_integration.py -v
+```
+
+**Week 15 & 17: WebSockets & E2E API**
+Test the real-time WebSocket streaming endpoint for the frontend chat:
+```bash
+poetry run pytest tests/integration/test_ws_plan.py -v
+```
+
+**Week 16: Frontend React Application**
+The frontend dependency error (`react-leaflet`) has been fixed. Start the UI:
+```bash
+cd frontend
+npm run dev
+```
+
+**Week 17: Load Testing**
+Run a simulated load test against the API using Locust (starts UI on http://localhost:8089):
+```bash
+poetry run locust -f locustfile.py --host http://localhost:8000
+```
+
+**Week 18: Docker & CI-CD**
+Start the entire stack (Redis, Backend, Frontend, Prometheus, Grafana) via Docker:
+*(Note: Ensure Docker Desktop is running on your machine first!)*
+```bash
+docker compose up -d
+```
+
+**Week 19: Monitoring & Observability**
+Ensure the backend is running, then check the Prometheus metrics endpoint and LLM cost tracker:
+```bash
+# Terminal 1:
+poetry run uvicorn ai_travel_agent.api.main:app --reload
+
+# Terminal 2:
+curl http://localhost:8000/metrics
+curl http://localhost:8000/api/trip/usage/test_session_id
+```

@@ -39,6 +39,7 @@ def mock_graph(monkeypatch):
 @pytest.fixture()
 def client():
     from ai_travel_agent.api.main import app
+
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
 
@@ -130,7 +131,15 @@ def test_plan_empty_destination(client):
 
 
 def test_plan_with_extra_instruction(client):
-    r = client.post("/plan", json={"destination": "Paris", "days": 3, "budget": 2000, "extra": "family friendly"})
+    r = client.post(
+        "/plan",
+        json={
+            "destination": "Paris",
+            "days": 3,
+            "budget": 2000,
+            "extra": "family friendly",
+        },
+    )
     assert r.status_code == 200
 
 
@@ -164,7 +173,9 @@ def test_status_invalid_uuid(client):
 # ═══════════════════════════════════════════════════════════════════════════════
 def test_refine_valid_session(client):
     session_id = _plan(client)["session_id"]
-    r = client.post("/refine", json={"session_id": session_id, "instruction": "less walking"})
+    r = client.post(
+        "/refine", json={"session_id": session_id, "instruction": "less walking"}
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["session_id"] == session_id
@@ -173,7 +184,9 @@ def test_refine_valid_session(client):
 
 
 def test_refine_invalid_session(client):
-    r = client.post("/refine", json={"session_id": "bad-session", "instruction": "add museums"})
+    r = client.post(
+        "/refine", json={"session_id": "bad-session", "instruction": "add museums"}
+    )
     assert r.status_code == 404
 
 
@@ -331,9 +344,10 @@ def test_restaurants_endpoint(client):
 def test_budget_post(client):
     with patch("ai_travel_agent.api.main._budget_tool") as m:
         m._run.return_value = {"status": "ok"}
-        r = client.post("/api/trip/budget", json={
-            "trip_id": "t1", "action": "set_budget", "total_budget": 2000
-        })
+        r = client.post(
+            "/api/trip/budget",
+            json={"trip_id": "t1", "action": "set_budget", "total_budget": 2000},
+        )
     assert r.status_code == 200
 
 
@@ -350,10 +364,10 @@ def test_budget_get(client):
 def test_evaluate_valid(client):
     with patch("ai_travel_agent.api.main.evaluate_itinerary") as m:
         m.return_value = {"score": 8.5}
-        r = client.post("/api/trip/evaluate", json={
-            "itinerary": {"day_1": ["Museum"]},
-            "request": "Paris 3 days"
-        })
+        r = client.post(
+            "/api/trip/evaluate",
+            json={"itinerary": {"day_1": ["Museum"]}, "request": "Paris 3 days"},
+        )
     assert r.status_code == 200
 
 
