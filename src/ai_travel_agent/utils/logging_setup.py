@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import typing
 
 import structlog
 
@@ -32,7 +33,7 @@ def configure_structlog(json_output: bool = True) -> None:
     (i.e. everything using your existing get_logger()) through the same
     structlog processors, so you get one consistent log format instead of
     two competing ones."""
-    shared_processors = [
+    shared_processors: list[typing.Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
@@ -67,7 +68,7 @@ def configure_structlog(json_output: bool = True) -> None:
     root.setLevel(logging.INFO)
 
 
-def bind_session(**kwargs) -> None:
+def bind_session(**kwargs: typing.Any) -> None:
     """Attach fields (session_id, job_id, destination, ...) to every log
     line emitted for the current async context — call at the top of
     /plan, /refine, and inside ws_plan right after session_id is created."""
@@ -79,4 +80,4 @@ def clear_session_context() -> None:
 
 
 def get_struct_logger(name: str) -> structlog.stdlib.BoundLogger:
-    return structlog.get_logger(name)
+    return structlog.get_logger(name)  # type: ignore

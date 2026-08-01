@@ -22,6 +22,7 @@ Add to pyproject.toml:
 from __future__ import annotations
 
 import time
+import typing
 from contextlib import contextmanager
 
 from prometheus_client import Counter, Histogram
@@ -30,7 +31,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 # ── HTTP-level (automatic) ───────────────────────────────────────────────
 
 
-def instrument_app(app) -> None:
+def instrument_app(app: typing.Any) -> None:
     """Call once in api/main.py: Instrumentator().instrument(app).expose(app)
     equivalent, wrapped so main.py only needs one import."""
     Instrumentator().instrument(app).expose(
@@ -79,7 +80,7 @@ ollama_request_seconds = Histogram(
 
 
 @contextmanager
-def time_node(node_name: str):
+def time_node(node_name: str) -> typing.Iterator[None]:
     """Wrap a single node's execution during streaming:
     with time_node(node_name):
         ... process node_output ...
@@ -100,7 +101,7 @@ def time_node(node_name: str):
             tool_error_total.labels(node_name=node_name).inc()
 
 
-def record_node_result(node_name: str, node_output: dict) -> None:
+def record_node_result(node_name: str, node_output: dict[str, typing.Any]) -> None:
     """Call this for chunks that don't raise but carry an internal error
     status (your nodes.py convention, if any — adjust the key check below
     to match how handle_error/error states are represented in state.py)."""

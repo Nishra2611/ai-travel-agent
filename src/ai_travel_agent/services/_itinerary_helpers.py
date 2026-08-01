@@ -59,7 +59,7 @@ def environment_for(
 ) -> str:
     """'indoor' | 'outdoor' | 'mixed'"""
     if activity.attraction_id and activity.attraction_id in attraction_index:
-        category = attraction_index[activity.attraction_id].get("category")
+        category = str(attraction_index[activity.attraction_id].get("category") or "")
         return CATEGORY_ENVIRONMENT.get(category, "mixed")
     return "mixed"
 

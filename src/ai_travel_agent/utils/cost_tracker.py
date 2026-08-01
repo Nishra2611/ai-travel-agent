@@ -117,7 +117,7 @@ class TimedOllamaCall:
         self._start = time.perf_counter()
         return self
 
-    def __exit__(self, *exc_info) -> None:
+    def __exit__(self, *exc_info: Any) -> None:
         self.duration_seconds = time.perf_counter() - self._start
         track_ollama_call(
             self.session_id, self.node_name, self.model, self.duration_seconds
