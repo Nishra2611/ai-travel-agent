@@ -1,3 +1,4 @@
+# ruff: noqa: UP031, E402
 """
 run_all.py  --  Weeks 1-12 end-to-end test.
 Usage:  poetry run python run_all.py
@@ -28,7 +29,7 @@ def check(label, ok, data=None):
         PASS += 1
     else:
         FAIL += 1
-    print("\n[%s] %s" % ("PASS" if ok else "FAIL", label))
+    print("\n[{}] {}".format("PASS" if ok else "FAIL", label))
     if data is not None:
         text = json.dumps(data, indent=2, default=str)
         lines = text.splitlines()
@@ -41,7 +42,9 @@ def check(label, ok, data=None):
 # ── Start server ─────────────────────────────────────────────
 section("STARTING SERVER")
 import os
+
 from dotenv import load_dotenv
+
 load_dotenv()
 # Build env with all keys explicitly set so pydantic-settings picks them up
 server_env = os.environ.copy()
@@ -190,7 +193,7 @@ try:
     r = httpx.get(f"{BASE}/api/trip/budget/{trip_id}", timeout=10)
     data = r.json()
     check(
-        "GET /api/trip/budget  spent=$%.0f  remaining=$%.0f" % (
+        "GET /api/trip/budget  spent=${:.0f}  remaining=${:.0f}".format(
             data.get("spent_total", 0), data.get("remaining", 0)),
         r.status_code == 200 and data.get("spent_total") == 950.0,
         data,
@@ -319,3 +322,5 @@ finally:
     server.wait()
     print("  Server stopped.")
     sys.exit(0 if FAIL == 0 else 1)
+
+

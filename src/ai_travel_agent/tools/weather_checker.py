@@ -44,13 +44,13 @@ class WeatherCheckerTool(BaseTool):
         else:
             key = os.getenv("OPENWEATHERMAP_API_KEY") or settings.openweathermap_api_key
 
-        if not key:
-            logger.warning("Missing API key")
-            return []
-
         loc = geocode(city)
         if not loc:
             return []
+
+        if not key:
+            logger.info("OPENWEATHERMAP_API_KEY not set; using Open-Meteo forecast")
+            return self._open_meteo(loc, days)
 
         mode = os.getenv("WEATHER_API_MODE", "forecast5")
 
@@ -60,7 +60,7 @@ class WeatherCheckerTool(BaseTool):
             return self._forecast5(loc, key, days)
         except Exception as exc:
             logger.exception(exc)
-            return []
+            return self._open_meteo(loc, days)
 
     @retry(
         retry=retry_if_exception_type(httpx.HTTPStatusError),
@@ -171,3 +171,90 @@ class WeatherCheckerTool(BaseTool):
             )
 
         return result
+
+    def _open_meteo(self, loc: dict[str, Any], days: int) -> list[dict[str, Any]]:
+        resp = httpx.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": loc["lat"],
+                "longitude": loc["lng"],
+                "daily": (
+                    "weather_code,temperature_2m_max,temperature_2m_min,"
+                    "precipitation_probability_max"
+                ),
+                "hourly": "relative_humidity_2m",
+                "forecast_days": max(1, min(days, 16)),
+                "timezone": "auto",
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        daily = resp.json().get("daily") or {}
+        dates = daily.get("time") or []
+        highs = daily.get("temperature_2m_max") or []
+        lows = daily.get("temperature_2m_min") or []
+        rain = daily.get("precipitation_probability_max") or []
+        codes = daily.get("weather_code") or []
+        humidity_by_date = self._daily_humidity(resp.json().get("hourly") or {})
+
+        result: list[dict[str, Any]] = []
+        for i, date_str in enumerate(dates[:days]):
+            result.append(
+                {
+                    "date": date_str,
+                    "temp_min": lows[i] if i < len(lows) else 0.0,
+                    "temp_max": highs[i] if i < len(highs) else 0.0,
+                    "condition": self._weather_code_label(
+                        codes[i] if i < len(codes) else None
+                    ),
+                    "rain_chance_pct": int(rain[i] or 0) if i < len(rain) else 0,
+                    "humidity_pct": int(humidity_by_date.get(date_str, 0)),
+                    "rain_chance": (
+                        float(rain[i] or 0) / 100 if i < len(rain) else 0.0
+                    ),
+                }
+            )
+        return result
+
+    @staticmethod
+    def _daily_humidity(hourly: dict[str, Any]) -> dict[str, float]:
+        by_date: defaultdict[str, list[float]] = defaultdict(list)
+        times = hourly.get("time") or []
+        values = hourly.get("relative_humidity_2m") or []
+        for time_str, value in zip(times, values, strict=False):
+            if value is None:
+                continue
+            by_date[str(time_str).split("T")[0]].append(float(value))
+        return {
+            date_str: sum(items) / len(items)
+            for date_str, items in by_date.items()
+            if items
+        }
+
+    @staticmethod
+    def _weather_code_label(code: Any) -> str:
+        labels = {
+            0: "Clear sky",
+            1: "Mainly clear",
+            2: "Partly cloudy",
+            3: "Overcast",
+            45: "Fog",
+            48: "Depositing rime fog",
+            51: "Light drizzle",
+            53: "Drizzle",
+            55: "Dense drizzle",
+            61: "Slight rain",
+            63: "Rain",
+            65: "Heavy rain",
+            71: "Slight snow",
+            73: "Snow",
+            75: "Heavy snow",
+            80: "Rain showers",
+            81: "Rain showers",
+            82: "Violent rain showers",
+            95: "Thunderstorm",
+        }
+        try:
+            return labels.get(int(code), "Forecast")
+        except (TypeError, ValueError):
+            return "Forecast"

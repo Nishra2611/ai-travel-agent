@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-const WS_URL = "ws://localhost:8000/ws/plan";
+const WS_URL = "ws://localhost:8001/ws/plan";
 
 export function usePlanStream() {
   const [messages, setMessages] = useState([]);
@@ -10,17 +10,17 @@ export function usePlanStream() {
 
   const addMsg = useCallback((msg) => setMessages((prev) => [...prev, msg]), []);
 
-  const startPlan = useCallback(
-    (destination, days, budget, extra = "") => {
+  const openPlanSocket = useCallback(
+    (payload, fallbackDestination = "") => {
       if (wsRef.current) wsRef.current.close();
       setMessages([]);
       setStreaming(true);
-      setSessionId(null);
+      if (!payload.session_id) setSessionId(null);
 
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
-      ws.onopen = () => ws.send(JSON.stringify({ destination, days, budget, extra }));
+      ws.onopen = () => ws.send(JSON.stringify(payload));
 
       ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
@@ -33,11 +33,12 @@ export function usePlanStream() {
           addMsg({
             role: "assistant",
             itinerary: data.itinerary || {},
-            destination: data.destination || destination,
+            destination: data.destination || fallbackDestination,
             flights: data.flights || [],
             hotels: data.hotels || [],
             weather: data.weather || [],
             budget: data.budget || {},
+            fullOutput: data.full_output || null,
           });
           setStreaming(false);
         } else if (data.type === "error") {
@@ -56,10 +57,25 @@ export function usePlanStream() {
     [addMsg]
   );
 
+  const startPlan = useCallback(
+    (destination, days, budget, extra = "") => {
+      openPlanSocket({ destination, days, budget, extra }, destination);
+    },
+    [openPlanSocket]
+  );
+
+  const refinePlan = useCallback(
+    (instruction) => {
+      if (!sessionId) return;
+      openPlanSocket({ session_id: sessionId, instruction, refine: true }, "");
+    },
+    [openPlanSocket, sessionId]
+  );
+
   const cancel = useCallback(() => {
     wsRef.current?.close();
     setStreaming(false);
   }, []);
 
-  return { messages, streaming, sessionId, startPlan, cancel, addMsg };
+  return { messages, streaming, sessionId, startPlan, refinePlan, cancel, addMsg };
 }

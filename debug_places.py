@@ -1,6 +1,10 @@
-import sys, io
+# ruff: noqa: E402
+import io
+import sys
+
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 import httpx
+
 from ai_travel_agent.utils.config import settings
 
 key = settings.google_places_api_key
@@ -17,6 +21,7 @@ resp = httpx.post(
 )
 print("Status:", resp.status_code)
 import json
+
 data = resp.json()
 places = data.get("places", [])
 print("Places count:", len(places))
@@ -24,3 +29,4 @@ if places:
     print("First:", places[0].get("displayName", {}).get("text"), places[0].get("rating"))
 else:
     print("Response:", json.dumps(data, indent=2)[:500])
+

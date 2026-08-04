@@ -226,3 +226,7 @@ __marimo__/
 data/*.db
 data/*.db-shm
 data/*.db-wal
+
+ai-travel-agent1/
+ai-travel-agent1.zip
+temp_zip/

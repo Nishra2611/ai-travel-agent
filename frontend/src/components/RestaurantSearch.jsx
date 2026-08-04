@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { MapPin, Search, Utensils } from "lucide-react";
+import { useGlobalState } from "../context/GlobalState";
+import { useNavigate } from "react-router-dom";
 import {
   EmptyState,
   ErrorBanner,
@@ -15,7 +17,7 @@ import {
   initials,
 } from "./shared/TravelUI";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8001";
 const BUDGET_TIERS = ["$", "$$", "$$$", "$$$$"];
 
 function priceTag(level) {
@@ -23,18 +25,7 @@ function priceTag(level) {
   return "$".repeat(level + 1);
 }
 
-function buildMockRestaurants(city) {
-  const names = ["Trattoria Bella", "The Garden Table", "Spice Route", "Riverside Bistro", "Corner Bakehouse"];
-  return names.map((n, i) => ({
-    name: `${n}`,
-    rating: parseFloat((4.8 - i * 0.12).toFixed(1)),
-    price_level: i % 4,
-    address: `${i + 12} Market Street, ${city}`,
-    types: ["restaurant"],
-  }));
-}
-
-function RestaurantCard({ restaurant, index, cuisine }) {
+function RestaurantCard({ restaurant, index, cuisine, onAdd }) {
   const gradient = PALETTES[index % PALETTES.length];
   const tier = priceTag(restaurant.price_level);
 
@@ -65,28 +56,45 @@ function RestaurantCard({ restaurant, index, cuisine }) {
             <span>{restaurant.address}</span>
           </div>
         )}
+
+        <div className="card-actions" style={{ marginTop: 16, justifyContent: "flex-end", gap: 10 }}>
+          <button 
+            type="button" 
+            className="secondary-button"
+            onClick={() => onAdd(restaurant.name)}
+          >
+            Add to Trip
+          </button>
+        </div>
       </div>
     </article>
   );
 }
 
 export default function RestaurantSearch() {
-  const [city, setCity] = useState("London");
+  const { globalCity, setPendingRefinement } = useGlobalState();
+  const [localCity, setLocalCity] = useState(globalCity || "Paris");
+  const navigate = useNavigate();
   const [cuisine, setCuisine] = useState("");
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [budget, setBudget] = useState(null);
   const [minRating, setMinRating] = useState(0);
-  const [lastCity, setLastCity] = useState("London");
+  const [lastCity, setLastCity] = useState("");
 
   const doSearch = useCallback(async () => {
+    if (!localCity.trim()) {
+      setRestaurants([]);
+      setLastCity("");
+      return;
+    }
     setLoading(true);
     setError(null);
-    setLastCity(city);
+    setLastCity(localCity);
 
     try {
-      const qs = new URLSearchParams({ city, limit: 12, min_rating: minRating });
+      const qs = new URLSearchParams({ city: localCity, limit: 12, min_rating: minRating });
       if (cuisine) qs.set("cuisine", cuisine);
       if (budget) qs.set("budget", budget);
       const res = await fetch(`${API_BASE}/api/trip/restaurants?${qs}`);
@@ -94,30 +102,32 @@ export default function RestaurantSearch() {
       const data = await res.json();
       setRestaurants(Array.isArray(data) ? data : []);
     } catch {
-      setError("Could not reach the server. Showing sample results.");
-      setRestaurants(buildMockRestaurants(city));
+      setError("Could not load live restaurants. Check the backend and SERPER_API_KEY.");
+      setRestaurants([]);
     } finally {
       setLoading(false);
     }
-  }, [city, cuisine, budget, minRating]);
+  }, [localCity, cuisine, budget, minRating]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    doSearch();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const delay = setTimeout(() => {
+      doSearch();
+    }, 500); // 500ms debounce
+    return () => clearTimeout(delay);
+  }, [localCity, cuisine, budget, minRating, doSearch]);
 
   return (
     <div className="planner-page">
       <PageHeader
         eyebrow="Where to eat"
-        title={`Restaurants in ${lastCity}`}
+        title={lastCity ? `Restaurants in ${lastCity}` : "Restaurants"}
         subtitle="Compare cuisines, ratings, price tiers, and addresses for your itinerary."
         meta={`${restaurants.length} place${restaurants.length !== 1 ? "s" : ""}`}
       />
 
-      <SearchPanel columns="2fr 1.4fr 1fr">
-        <SearchInput label="City" icon={MapPin} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. London" />
-        <SearchInput label="Cuisine" icon={Utensils} value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="Optional" />
+      <SearchPanel columns="1fr 1fr 1fr">
+        <SearchInput type="text" label="City" icon={MapPin} value={localCity} onChange={(e) => setLocalCity(e.target.value)} />
+        <SearchInput label="Cuisine (Optional)" icon={Utensils} value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="e.g. Italian, Sushi" />
         <SearchButton loading={loading} onClick={doSearch} icon={Search}>
           Search
         </SearchButton>
@@ -129,17 +139,17 @@ export default function RestaurantSearch() {
         <div className="chip-group">
           <span className="filter-label">Budget</span>
           {BUDGET_TIERS.map((b) => (
-            <Pill key={b} label={b} active={budget === b} onClick={() => { setBudget(budget === b ? null : b); doSearch(); }} />
+            <Pill key={b} label={b} active={budget === b} onClick={() => { setBudget(budget === b ? null : b); }} />
           ))}
           <span className="filter-label">Rating</span>
           {[0, 4, 4.5].map((r) => (
-            <Pill key={r} label={r === 0 ? "Any" : `${r}+`} active={minRating === r} onClick={() => { setMinRating(r); doSearch(); }} />
+            <Pill key={r} label={r === 0 ? "Any" : `${r}+`} active={minRating === r} onClick={() => { setMinRating(r); }} />
           ))}
         </div>
       </div>
 
       {loading ? (
-        <Shimmer label={`Finding tables in ${city}`} />
+        <Shimmer label={localCity ? `Finding tables in ${localCity}` : "Finding tables"} />
       ) : restaurants.length === 0 ? (
         <EmptyState
           icon={Utensils}
@@ -148,13 +158,21 @@ export default function RestaurantSearch() {
           onClear={() => {
             setBudget(null);
             setMinRating(0);
-            doSearch();
           }}
         />
       ) : (
         <div className="results-grid">
           {restaurants.map((r, i) => (
-            <RestaurantCard key={`${r.name}-${i}`} restaurant={r} index={i} cuisine={cuisine} />
+            <RestaurantCard 
+              key={`${r.name}-${i}`} 
+              restaurant={r} 
+              index={i} 
+              cuisine={cuisine} 
+              onAdd={(name) => {
+                setPendingRefinement(`Add restaurant ${name} to my itinerary`);
+                navigate("/chat");
+              }}
+            />
           ))}
         </div>
       )}

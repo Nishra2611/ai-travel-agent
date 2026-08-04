@@ -21,7 +21,7 @@ def geocode(query: str) -> dict[str, Any] | None:
             timeout=10,
         )
         resp.raise_for_status()
-    except (httpx.ConnectError, httpx.TimeoutException):
+    except Exception:
         return None
 
     data = resp.json()

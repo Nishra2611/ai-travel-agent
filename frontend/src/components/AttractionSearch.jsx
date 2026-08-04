@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Clock3, Compass, Globe2, Landmark, MapPin, Plus, Search } from "lucide-react";
+import { useGlobalState } from "../context/GlobalState";
+import { useNavigate } from "react-router-dom";
 import {
   EmptyState,
   ErrorBanner,
@@ -15,7 +17,7 @@ import {
   initials,
 } from "./shared/TravelUI";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8001";
 
 const CATEGORY_LABELS = {
   attraction: "Attraction",
@@ -69,7 +71,11 @@ function AttractionCard({ attraction, index }) {
             <Landmark size={13} />
             Recommended stop
           </span>
-          <button type="button" className="secondary-button">
+          <button 
+            type="button" 
+            className="secondary-button"
+            onClick={() => onAdd && onAdd(attraction.name)}
+          >
             <Plus size={17} />
             Add to Trip
           </button>
@@ -80,21 +86,28 @@ function AttractionCard({ attraction, index }) {
 }
 
 export default function AttractionSearch() {
-  const [city, setCity] = useState("London");
+  const { globalCity, setPendingRefinement } = useGlobalState();
+  const navigate = useNavigate();
+  const [localCity, setLocalCity] = useState(globalCity || "London");
   const [country, setCountry] = useState("");
   const [attractions, setAttractions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [category, setCategory] = useState(null);
-  const [lastCity, setLastCity] = useState("London");
+  const [lastCity, setLastCity] = useState("");
 
   const doSearch = useCallback(async () => {
+    if (!localCity.trim()) {
+      setAttractions([]);
+      setLastCity("");
+      return;
+    }
     setLoading(true);
     setError(null);
-    setLastCity(city);
+    setLastCity(localCity);
 
     try {
-      const qs = new URLSearchParams({ city, limit: 12 });
+      const qs = new URLSearchParams({ city: localCity, limit: 12 });
       if (country) qs.set("country", country);
       const res = await fetch(`${API_BASE}/api/trip/attractions?${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -102,16 +115,18 @@ export default function AttractionSearch() {
       setAttractions(Array.isArray(data) ? data : []);
     } catch {
       setError("Could not reach the server. Showing sample results.");
-      setAttractions(buildMockAttractions(city));
+      setAttractions([]);
     } finally {
       setLoading(false);
     }
-  }, [city, country]);
+  }, [localCity, country]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    doSearch();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const delay = setTimeout(() => {
+      doSearch();
+    }, 500); // 500ms debounce
+    return () => clearTimeout(delay);
+  }, [localCity, country, doSearch]);
 
   const categories = [...new Set(attractions.map((a) => a.category).filter(Boolean))];
   const filtered = category ? attractions.filter((a) => a.category === category) : attractions;
@@ -120,13 +135,13 @@ export default function AttractionSearch() {
     <div className="planner-page">
       <PageHeader
         eyebrow="Things to do"
-        title={`Attractions in ${lastCity}`}
+        title={lastCity ? `Attractions in ${lastCity}` : "Attractions"}
         subtitle="Discover highly rated experiences, landmarks, museums, and local highlights."
         meta={`${filtered.length} place${filtered.length !== 1 ? "s" : ""}`}
       />
 
-      <SearchPanel columns="2fr 1fr 1fr">
-        <SearchInput label="City" icon={MapPin} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. London" />
+      <SearchPanel columns="1fr 1fr 1fr">
+        <SearchInput type="text" label="City" icon={MapPin} value={localCity} onChange={(e) => setLocalCity(e.target.value)} />
         <SearchInput label="Country" icon={Globe2} value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Optional" />
         <SearchButton loading={loading} onClick={doSearch} icon={Search}>
           Search
@@ -153,13 +168,21 @@ export default function AttractionSearch() {
       )}
 
       {loading ? (
-        <Shimmer label={`Scanning ${city} for things to do`} />
+        <Shimmer label={localCity ? `Scanning ${localCity} for things to do` : "Scanning for things to do"} />
       ) : filtered.length === 0 ? (
         <EmptyState icon={Compass} title="No attractions match these filters." hint="Clear the category filter to widen your search." onClear={() => setCategory(null)} />
       ) : (
         <div className="results-grid">
           {filtered.map((a, i) => (
-            <AttractionCard key={`${a.name}-${i}`} attraction={a} index={i} />
+            <AttractionCard 
+              key={`${a.name}-${i}`} 
+              attraction={a} 
+              index={i} 
+              onAdd={(name) => {
+                setPendingRefinement(`Add ${name} to my itinerary`);
+                navigate("/chat");
+              }}
+            />
           ))}
         </div>
       )}
