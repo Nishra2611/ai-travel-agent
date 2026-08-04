@@ -27,6 +27,8 @@ def web_search(
         json={
             "q": query,
             "num": num_results,
+            "gl": "us",
+            "hl": "en",
         },
         timeout=10,
     )
@@ -54,6 +56,8 @@ def places_search(
         json={
             "q": query,
             "num": num_results,
+            "gl": "us",
+            "hl": "en",
         },
         timeout=10,
     )

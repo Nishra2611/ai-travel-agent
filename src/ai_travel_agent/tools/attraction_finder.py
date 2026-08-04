@@ -40,7 +40,7 @@ def overpass_attractions_near(
 
     for el in resp.json().get("elements", []):
         tags = el.get("tags", {})
-        name = tags.get("name")
+        name = tags.get("name:en") or tags.get("name")
 
         if not name:
             continue

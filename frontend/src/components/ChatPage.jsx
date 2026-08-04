@@ -21,6 +21,7 @@ import { usePlanStream } from "../hooks/usePlanStream";
 import { useGlobalState } from "../context/GlobalState";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import "./ChatPage.css";
 
 function StreamingBubble({ steps }) {
   return (
