@@ -235,7 +235,7 @@ export default function ChatPage() {
   const handleExport = useCallback(async (fmt) => {
     if (!sessionId) return;
     try {
-      const res = await fetch(`http://localhost:8000/export?session_id=${sessionId}&fmt=${fmt}`);
+      const res = await fetch(`http://localhost:8001/export?session_id=${sessionId}&fmt=${fmt}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Export failed" }));
         setChatLog((prev) => [...prev, { type: "error", text: err.detail || "Export failed" }]);

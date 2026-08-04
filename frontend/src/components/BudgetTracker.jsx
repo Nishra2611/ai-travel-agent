@@ -9,7 +9,7 @@ import {
   SearchSelect,
 } from "./shared/TravelUI";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8001";
 
 const CATEGORIES = ["accommodation", "food", "attractions", "transport", "shopping", "misc"];
 

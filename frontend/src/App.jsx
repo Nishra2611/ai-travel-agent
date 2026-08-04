@@ -40,7 +40,7 @@ function AppContent() {
           <div className="trip-summary" aria-label="Current trip summary">
             <span><Map size={16} /> {currentTrip?.destination || globalCity || "Destination"}</span>
             {currentTrip?.days && <span><ReceiptText size={16} /> {currentTrip.days} days</span>}
-            {currentTrip?.budget && <span><Sparkles size={16} /> ${currentTrip.budget}</span>}
+            {currentTrip?.budget && (typeof currentTrip.budget === 'object' ? currentTrip.budget.total != null && <span><Sparkles size={16} /> ${currentTrip.budget.total}</span> : <span><Sparkles size={16} /> ${currentTrip.budget}</span>)}
           </div>
         </div>
       </header>

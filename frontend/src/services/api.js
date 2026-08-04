@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8000";
+const BASE = "http://localhost:8001";
 
 export async function refineTrip(sessionId, instruction) {
   const r = await fetch(`${BASE}/refine`, {

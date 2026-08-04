@@ -13,7 +13,7 @@ import {
   Shimmer,
 } from "./shared/TravelUI";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8001";
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");

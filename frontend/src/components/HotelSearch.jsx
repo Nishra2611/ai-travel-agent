@@ -29,7 +29,7 @@ import {
 } from "./shared/TravelUI";
 import { HotelCard } from "./shared/HotelCard";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8001";
 
 function nightsBetween(a, b) {
   return Math.max(1, Math.round((new Date(b) - new Date(a)) / 86_400_000));

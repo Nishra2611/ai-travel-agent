@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-const WS_URL = "ws://localhost:8000/ws/plan";
+const WS_URL = "ws://localhost:8001/ws/plan";
 
 export function usePlanStream() {
   const [messages, setMessages] = useState([]);

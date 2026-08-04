@@ -17,7 +17,7 @@ import {
   initials,
 } from "./shared/TravelUI";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8001";
 
 const CATEGORY_LABELS = {
   attraction: "Attraction",
