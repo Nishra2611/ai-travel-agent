@@ -127,8 +127,14 @@ function parseInput(text) {
   const budgetMatch = text.match(/\$\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars?)/i);
   const days = daysMatch ? parseInt(daysMatch[1], 10) : 5;
   const budget = budgetMatch ? parseFloat(budgetMatch[1] || budgetMatch[2]) : null;
-  const destMatch = text.match(/^([A-Za-z][A-Za-z\s,.-]+?)(?:\s+\d|\s+under|\s+for|\s+\$|$)/i);
-  const destination = destMatch ? destMatch[1].replace(/[,.]$/, "").trim() : text.split(" ")[0];
+
+  let destText = text;
+  if (daysMatch) destText = destText.replace(daysMatch[0], "");
+  if (budgetMatch) destText = destText.replace(budgetMatch[0], "");
+  
+  const destMatch = destText.match(/[A-Za-z][A-Za-z\s,.-]{1,}/);
+  const destination = destMatch ? destMatch[0].trim().replace(/[,.]$/, "") : text.split(" ")[0];
+  
   return { destination, days, budget, extra: text };
 }
 

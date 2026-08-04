@@ -13,8 +13,8 @@ OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 def overpass_attractions_near(
     lat: float,
     lng: float,
-    radius_m: int = 8000,
-    limit: int = 25,
+    radius_m: int = 25000,
+    limit: int = 200,
 ) -> list[dict[str, Any]]:
     query = f"""
     [out:json][timeout:25];

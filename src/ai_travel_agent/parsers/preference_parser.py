@@ -148,7 +148,7 @@ class PreferenceParserTool(BaseTravelTool):
 
         # budget: $1500 or 1500$ or 1500 usd or plain number ≥100 after days keyword
         budget: float | None = None
-        m = re.search(r"\$\s*([\d,]+)", text)
+        m = re.search(r"(?:^|\s)\$\s*([\d,]+)", text)
         if not m:
             m = re.search(r"([\d,]+)\s*\$", text)
         if not m:

@@ -312,62 +312,81 @@
   font-size: 0.625rem;
 }
 
-.chat-input-area {
+.chat-input-bar {
   padding: 1rem 1.5rem;
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
 }
 
-.chat-input-area__inner {
+.chat-input-area {
   max-width: 900px;
   margin: 0 auto;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.chat-input-box {
+.input-shell {
+  position: relative;
+  width: 100%;
+}
+
+.chat-input {
   width: 100%;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 1rem 3rem 1rem 1rem;
+  padding: 1rem 3.5rem 1rem 1rem;
   font-size: 0.9375rem;
   resize: none;
   min-height: 56px;
   max-height: 200px;
   font-family: inherit;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
 
-.chat-input-box:focus {
+.chat-input:focus {
   outline: none;
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
 }
 
-.chat-input-area__inner .icon-btn {
+.send-btn {
   position: absolute;
   right: 0.5rem;
   bottom: 0.5rem;
   background: var(--color-primary);
   color: white;
-  border-color: var(--color-primary);
+  border: none;
+  border-radius: 8px;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.chat-input-area__inner .icon-btn:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+.send-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark, #0f766e);
 }
 
-.chat-input-area__inner .icon-btn:disabled {
+.send-btn:disabled {
   background: var(--color-border);
-  border-color: var(--color-border);
   color: var(--color-text-dim);
   cursor: not-allowed;
+}
+
+.send-btn--cancel {
+  background: #ef4444;
+}
+
+.send-btn--cancel:hover {
+  background: #dc2626;
 }
 
 /* Itinerary Cards Styles */
