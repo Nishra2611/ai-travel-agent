@@ -104,14 +104,15 @@ class HotelSearchTool(BaseTravelTool):
     def _map_hotel(
         self, prop: dict[str, Any], check_in: str, check_out: str, nights: int
     ) -> dict[str, Any]:
-        per_night = self._extract_price(prop)
+        star_rating = self._extract_star_rating(prop)
+        per_night = self._extract_price(prop, star_rating)
         lat = float(prop.get("latitude") or prop.get("lat") or 0.0)
         lng = float(prop.get("longitude") or prop.get("lng") or 0.0)
 
         return {
             "id": str(prop.get("cid") or prop.get("placeId") or uuid.uuid4()),
             "name": str(prop.get("title") or prop.get("name") or "Unknown Hotel"),
-            "star_rating": self._extract_star_rating(prop),
+            "star_rating": star_rating,
             "price_per_night_usd": per_night,
             "total_price_usd": per_night * nights if per_night else 0.0,
             "check_in": date.fromisoformat(check_in),
@@ -132,7 +133,7 @@ class HotelSearchTool(BaseTravelTool):
         }
 
     @staticmethod
-    def _extract_price(prop: dict[str, Any]) -> float:
+    def _extract_price(prop: dict[str, Any], star_rating: float | None = None) -> float:
         price = prop.get("price") or prop.get("priceRange") or prop.get("priceLevel") or prop.get("price_level")
         if isinstance(price, int | float):
             # If it's a price level integer from Places (0-4)
@@ -147,8 +148,18 @@ class HotelSearchTool(BaseTravelTool):
             if "$" in price:
                 level = price.count("$")
                 return float([50, 100, 200, 400, 800][min(level, 4)])
-        # fallback mock price if Places returns nothing
-        return 150.0
+                
+        # fallback mock price if Places returns nothing (pseudo-random but deterministic)
+        import hashlib
+        name_hash = int(hashlib.md5(str(prop.get("title") or prop.get("name") or "default").encode()).hexdigest(), 16)
+        
+        if star_rating and star_rating >= 5:
+            return float(300 + (name_hash % 200))
+        elif star_rating and star_rating >= 4:
+            return float(120 + (name_hash % 100))
+        elif star_rating and star_rating >= 3:
+            return float(70 + (name_hash % 60))
+        return float(30 + (name_hash % 40))
 
     @staticmethod
     def _extract_star_rating(prop: dict[str, Any]) -> float | None:
