@@ -196,7 +196,12 @@ class FlightSearchTool(BaseTravelTool):
         max_price = kwargs.get("max_price")
         scale = 1.0
         if max_price and max_price > 0:
-            scale = (max_price * 0.8) / 742.0
+            target = max_price * 0.8
+            # Do not artificially drop the price to absurdly low numbers
+            if target < 100.0:
+                scale = 100.0 / 742.0
+            else:
+                scale = target / 742.0
 
         rows = [
             ("AI 131", "Air India", 742 * scale, 510, 0),

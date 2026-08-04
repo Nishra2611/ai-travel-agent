@@ -136,7 +136,7 @@ class HotelSearchTool(BaseTravelTool):
         price = prop.get("price") or prop.get("priceRange") or prop.get("priceLevel") or prop.get("price_level")
         if isinstance(price, int | float):
             # If it's a price level integer from Places (0-4)
-            if price <= 4 and "priceLevel" in prop:
+            if price <= 4 and ("priceLevel" in prop or "price_level" in prop):
                 return [50.0, 100.0, 200.0, 400.0, 800.0][int(price)]
             return float(price)
         if isinstance(price, str):
