@@ -76,7 +76,7 @@ function AssistantBubble({ msg, onExport }) {
           <h4 className="result-section__title"><BedDouble size={15} /> Hotels</h4>
           <div className="results-grid">
             {msg.hotels.map((h, i) => (
-              <HotelCard key={h.id || `${h.name}-${i}`} hotel={h} index={i} standalone />
+              <HotelCard key={h.id || `${h.name}-${i}`} hotel={h} index={i} standalone hidePrice={true} />
             ))}
           </div>
         </div>

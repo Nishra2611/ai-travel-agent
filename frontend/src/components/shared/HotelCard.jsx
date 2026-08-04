@@ -17,7 +17,7 @@ const AMENITY_ICONS = {
   Kitchenette: Check,
 };
 
-export function HotelCard({ hotel, index, selected, onSelect, standalone = false }) {
+export function HotelCard({ hotel, index, selected, onSelect, standalone = false, hidePrice = false }) {
   const isSelected = selected === hotel.id;
   const gradient = PALETTES[index % PALETTES.length] || PALETTES[0];
 
@@ -33,10 +33,12 @@ export function HotelCard({ hotel, index, selected, onSelect, standalone = false
             <h3 className="card-title">{hotel.name}</h3>
             <Rating score={hotel.review_score || hotel.rating} count={hotel.review_count || hotel.ratingCount} />
           </div>
-          <div className="price-block">
-            <strong>{hotel.price_per_night_usd || hotel.price_per_night ? `$${Number(hotel.price_per_night_usd || hotel.price_per_night).toFixed(0)}` : "View"}</strong>
-            <span>{(hotel.price_per_night_usd || hotel.price_per_night) ? "per night" : "live listing"}</span>
-          </div>
+          {!hidePrice && (
+            <div className="price-block">
+              <strong>{hotel.price_per_night_usd || hotel.price_per_night ? `$${Number(hotel.price_per_night_usd || hotel.price_per_night).toFixed(0)}` : "View"}</strong>
+              <span>{(hotel.price_per_night_usd || hotel.price_per_night) ? "per night" : "live listing"}</span>
+            </div>
+          )}
         </div>
 
         <div className="icon-line">
@@ -62,7 +64,7 @@ export function HotelCard({ hotel, index, selected, onSelect, standalone = false
           })}
         </div>
         
-        {hotel.total_price_usd && (
+        {!hidePrice && hotel.total_price_usd && (
            <div className="price-total">
              Total stay: ${hotel.total_price_usd.toFixed(0)}
            </div>
