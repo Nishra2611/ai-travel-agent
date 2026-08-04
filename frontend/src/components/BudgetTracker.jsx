@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ChartPie, CircleDollarSign, Landmark, Plus, ReceiptText, RotateCcw, WalletCards } from "lucide-react";
+import { useGlobalState } from "../context/GlobalState";
 import {
   ErrorBanner,
   MetricCard,
@@ -8,13 +9,13 @@ import {
   SearchSelect,
 } from "./shared/TravelUI";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8001";
 
 const CATEGORIES = ["accommodation", "food", "attractions", "transport", "shopping", "misc"];
 
 function money(n) {
-  if (n == null) return "GBP --";
-  return "GBP " + Math.round(n).toLocaleString();
+  if (n == null) return "$--";
+  return "$" + Math.round(n).toLocaleString();
 }
 
 function CategoryBar({ category, amount, maxAmount }) {
@@ -33,6 +34,7 @@ function CategoryBar({ category, amount, maxAmount }) {
 }
 
 export default function BudgetTracker() {
+  const { currentTrip } = useGlobalState();
   const [tripId, setTripId] = useState("demo-trip");
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
@@ -102,6 +104,7 @@ export default function BudgetTracker() {
   const total = summary?.total_budget;
   const remaining = summary?.remaining;
   const byCategory = summary?.by_category || {};
+  const plannedBudget = currentTrip?.budget;
   const maxCategoryAmount = Math.max(1, ...Object.values(byCategory));
   const pctSpent = total ? Math.min(100, Math.round((spent / total) * 100)) : 0;
   const overBudget = total != null && spent > total;
@@ -111,12 +114,12 @@ export default function BudgetTracker() {
       <PageHeader
         eyebrow="Spending"
         title="Trip budget"
-        subtitle="Track total budget, remaining balance, category spend, and new expenses."
+        subtitle={plannedBudget?.total ? `Latest chat plan: $${Number(plannedBudget.total).toFixed(0)} total, $${Number(plannedBudget.spent || 0).toFixed(0)} planned spend.` : "Track total budget, remaining balance, category spend, and new expenses."}
         meta={total != null ? `${pctSpent}% used` : "No budget set"}
       />
 
       <div className="content-card">
-        <SearchInput label="Trip ID" icon={Landmark} value={tripId} onChange={(e) => setTripId(e.target.value)} placeholder="e.g. paris-dec-2025" />
+        <SearchInput label="Trip ID" icon={Landmark} value={tripId} onChange={(e) => setTripId(e.target.value)} placeholder="e.g. mumbai-dec-2025" />
       </div>
 
       <ErrorBanner msg={error} />

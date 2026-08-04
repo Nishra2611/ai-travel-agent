@@ -5,6 +5,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from ai_travel_agent.services.geocode_client import geocode
+from ai_travel_agent.services.places_client import places_text_search
 from ai_travel_agent.services.search_client import web_search
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -13,8 +14,8 @@ OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 def overpass_attractions_near(
     lat: float,
     lng: float,
-    radius_m: int = 8000,
-    limit: int = 25,
+    radius_m: int = 25000,
+    limit: int = 2000,
 ) -> list[dict[str, Any]]:
     query = f"""
     [out:json][timeout:25];
@@ -25,22 +26,26 @@ def overpass_attractions_near(
     out body {limit};
     """
 
-    resp = httpx.post(
-        OVERPASS_URL,
-        data={"data": query},
-        headers={
-            "User-Agent": "ai-travel-agent/1.0",
-            "Accept": "application/json",
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
+    try:
+        resp = httpx.post(
+            OVERPASS_URL,
+            data={"data": query},
+            headers={
+                "User-Agent": "ai-travel-agent/1.0",
+                "Accept": "application/json",
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except httpx.HTTPError:
+        return []
 
     results: list[dict[str, Any]] = []
 
-    for el in resp.json().get("elements", []):
+    for el in data.get("elements", []):
         tags = el.get("tags", {})
-        name = tags.get("name")
+        name = tags.get("name:en") or tags.get("name")
 
         if not name:
             continue
@@ -70,7 +75,7 @@ class AttractionFinderInput(BaseModel):
     limit: int = Field(
         default=10,
         ge=1,
-        le=20,
+        le=50,
     )
 
 
@@ -114,6 +119,16 @@ class AttractionFinderTool(BaseTool):
             float(center["lat"]),
             float(center["lng"]),
         )
+
+        if not candidates:
+            # Fallback to Places API if Overpass fails or returns nothing
+            places = places_text_search(
+                f"top tourist attractions in {city}", max_results=limit
+            )
+            for p in places:
+                p["popularity_hint"] = True
+                p["categories"] = p.get("types", [])
+            return places
 
         web_hits = web_search(
             f"top tourist attractions in {city}",

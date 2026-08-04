@@ -455,6 +455,9 @@ class _ItineraryBuilder:
         Pick and remove the best-matching attraction from pool.
         Priority: preferred_categories first, then any remaining.
         """
+        if not pool and self.attractions:
+            pool.extend(self.attractions)
+
         # try preferred categories in order
         for cat in preferred_categories:
             for i, item in enumerate(pool):
@@ -469,6 +472,9 @@ class _ItineraryBuilder:
         rest_pool: list[dict[str, Any]],
         slot: TimeSlot,
     ) -> ItineraryActivity | None:
+        if not rest_pool and self.restaurants:
+            rest_pool.extend(self.restaurants)
+
         if not rest_pool:
             return None
         r = rest_pool.pop(0)
@@ -587,7 +593,7 @@ class _ItineraryBuilder:
         self, attr: dict[str, Any], slot: TimeSlot
     ) -> ItineraryActivity:
         start = _SLOT_START[slot]
-        dur_h = float(attr.get("estimated_duration_hours", 2.0))
+        dur_h = float(attr.get("estimated_duration_hours") or 2.0)
         end_h = start.hour + int(dur_h)
         end_m = start.minute + int((dur_h % 1) * 60)
         if end_m >= 60:
@@ -646,7 +652,7 @@ class _ItineraryBuilder:
             return FlightOption(
                 id=d.get("id", str(uuid.uuid4())),
                 segments=segs,
-                total_price_usd=float(d["total_price_usd"]),
+                total_price_usd=float(d.get("total_price_usd") or 0.0),
                 currency=d.get("currency", "USD"),
                 cabin_class=d.get("cabin_class", "Economy"),
                 amadeus_offer_id=d.get("amadeus_offer_id"),
@@ -665,13 +671,13 @@ class _ItineraryBuilder:
                 id=top.get("id", str(uuid.uuid4())),
                 name=top.get("name", "Hotel"),
                 star_rating=top.get("star_rating"),
-                price_per_night_usd=float(top.get("price_per_night_usd", 0)),
-                total_price_usd=float(top.get("total_price_usd", 0)),
+                price_per_night_usd=float(top.get("price_per_night_usd") or 0.0),
+                total_price_usd=float(top.get("total_price_usd") or 0.0),
                 check_in=self.start_date,
                 check_out=self.start_date + timedelta(days=self.duration - 1),
                 location=GeoLocation(
-                    latitude=float(loc.get("latitude", 0)),
-                    longitude=float(loc.get("longitude", 0)),
+                    latitude=float(loc.get("latitude") or 0.0),
+                    longitude=float(loc.get("longitude") or 0.0),
                 ),
                 address=top.get("address", ""),
                 amenities=top.get("amenities", []),

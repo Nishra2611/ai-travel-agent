@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 """FastAPI application — Week 15 + 19: WebSocket streaming, sessions, rate limiting, observability."""
 
 from __future__ import annotations
@@ -9,6 +10,11 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from dotenv import load_dotenv
 from fastapi import (
     BackgroundTasks,
     FastAPI,
@@ -45,6 +51,8 @@ from ai_travel_agent.utils.metrics import (
     planning_duration_seconds,
     time_node,
 )
+
+load_dotenv()
 
 
 def _safe_json(obj: Any) -> Any:
@@ -393,24 +401,47 @@ async def ws_plan(websocket: WebSocket) -> None:
     await websocket.accept()
     try:
         data = await websocket.receive_json()
-        destination = data.get("destination", "")
-        days = int(data.get("days", 5))
-        budget = float(data.get("budget", 1500))
-        extra = data.get("extra", "")
+        is_refine = data.get("refine")
 
-        if not destination:
-            await websocket.send_json(
-                {"type": "error", "message": "destination required"}
-            )
-            return
+        if is_refine:
+            session_id = data.get("session_id")
+            instruction = data.get("instruction", "")
+            session = _sessions.get(session_id)
+            if not session:
+                await websocket.send_json(
+                    {"type": "error", "message": "session required for refine"}
+                )
+                return
+            destination = session.get("destination") or "Trip"
+            raw_input = session["raw_input"] + f". Refinement: {instruction}"
+            _sessions[session_id]["raw_input"] = raw_input
+            bind_session(session_id=session_id, destination=destination)
+        else:
+            destination = data.get("destination", "")
+            if not destination:
+                await websocket.send_json(
+                    {"type": "error", "message": "destination required"}
+                )
+                return
 
-        session_id = str(uuid.uuid4())
-        raw_input = f"{destination} {days} days ${budget:.0f}"
-        if extra:
-            raw_input += f" {extra}"
+            days = data.get("days")
+            days = int(days) if days is not None else 5
+            budget = data.get("budget")
+            budget = float(budget) if budget is not None else 1500.0
+            extra = data.get("extra", "")
 
-        _sessions[session_id] = {"raw_input": raw_input, "itinerary": None}
-        bind_session(session_id=session_id, destination=destination)
+            session_id = str(uuid.uuid4())
+            raw_input = f"{destination} {days} days ${budget:.0f}"
+            if extra:
+                raw_input += f" {extra}"
+
+            _sessions[session_id] = {
+                "raw_input": raw_input,
+                "itinerary": None,
+                "destination": destination,
+            }
+            bind_session(session_id=session_id, destination=destination)
+
         await websocket.send_json({"type": "session", "session_id": session_id})
 
         node_labels: dict[str, str] = {
@@ -489,15 +520,28 @@ async def ws_plan(websocket: WebSocket) -> None:
             }
 
         # clean flights for display
+        dest = final_output.get("destination") or destination
+        airport_map = {
+            "JFK": "New York (JFK)",
+            "DPS": "Bali (DPS)",
+            "LHR": "London (LHR)",
+            "CDG": "Paris (CDG)",
+            "HND": "Tokyo (HND)",
+            "BOM": "Mumbai (BOM)",
+            "AMD": "Ahmedabad (AMD)",
+            "DEL": "Delhi (DEL)",
+        }
         flights_clean = []
         for f in (final_output.get("flights") or [])[:3]:
             segs = f.get("segments") or []
             seg = segs[0] if segs else {}
+            dep = seg.get("departure_airport", "")
+            arr = seg.get("arrival_airport", "")
             flights_clean.append(
                 {
                     "airline": seg.get("airline", "Flight"),
-                    "from": seg.get("departure_airport", ""),
-                    "to": seg.get("arrival_airport", ""),
+                    "from": airport_map.get(dep, dep) if dep else "Origin",
+                    "to": airport_map.get(arr, arr) if arr else dest or "Destination",
                     "price": f.get("total_price_usd", 0),
                     "duration": f.get("total_duration_minutes", 0),
                     "stops": f.get("num_stops", 0),
@@ -509,11 +553,16 @@ async def ws_plan(websocket: WebSocket) -> None:
         for h in (final_output.get("hotels") or [])[:3]:
             hotels_clean.append(
                 {
+                    "id": h.get("id", ""),
                     "name": h.get("name", "Hotel"),
                     "stars": h.get("star_rating", 0),
                     "rating": h.get("review_score", 0),
+                    "review_count": h.get("review_count", 0),
                     "price_per_night": h.get("price_per_night_usd", 0),
-                    "amenities": (h.get("amenities") or [])[:4],
+                    "total_price_usd": h.get("total_price_usd", 0),
+                    "address": h.get("address", ""),
+                    "eco_certified": h.get("eco_certified", False),
+                    "amenities": h.get("amenities") or [],
                 }
             )
 
@@ -539,18 +588,26 @@ async def ws_plan(websocket: WebSocket) -> None:
             "by_category": budget_raw.get("by_category", {}),
         }
 
-        dest = final_output.get("destination") or destination
         # if itinerary is empty, build a placeholder so export always works
         if not normalized:
             num_days = int(data.get("days", 5))
             normalized = {f"Day {i + 1}": ["Free exploration"] for i in range(num_days)}
+
+        # format for frontend UI map and rich cards: {"Day 1": [ActivityDict, ActivityDict]}
+        frontend_itin: dict[str, list[Any]] = {}
+        if isinstance(raw_itin, dict) and "days" in raw_itin:
+            for day in raw_itin["days"]:
+                day_num = day.get("day_number", 1)
+                frontend_itin[f"Day {day_num}"] = day.get("activities") or []
+        else:
+            frontend_itin = raw_itin if isinstance(raw_itin, dict) else {}
 
         payload_out = _safe_json(
             {
                 "type": "done",
                 "session_id": session_id,
                 "destination": dest,
-                "itinerary": normalized,
+                "itinerary": frontend_itin,
                 "flights": flights_clean,
                 "hotels": hotels_clean,
                 "weather": weather_clean,
