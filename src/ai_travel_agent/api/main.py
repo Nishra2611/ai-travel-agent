@@ -576,12 +576,21 @@ async def ws_plan(websocket: WebSocket) -> None:
             num_days = int(data.get("days", 5))
             normalized = {f"Day {i + 1}": ["Free exploration"] for i in range(num_days)}
 
+        # format for frontend UI map and rich cards: {"Day 1": [ActivityDict, ActivityDict]}
+        frontend_itin: dict[str, list[Any]] = {}
+        if isinstance(raw_itin, dict) and "days" in raw_itin:
+            for day in raw_itin["days"]:
+                day_num = day.get("day_number", 1)
+                frontend_itin[f"Day {day_num}"] = day.get("activities") or []
+        else:
+            frontend_itin = raw_itin if isinstance(raw_itin, dict) else {}
+
         payload_out = _safe_json(
             {
                 "type": "done",
                 "session_id": session_id,
                 "destination": dest,
-                "itinerary": normalized,
+                "itinerary": frontend_itin,
                 "flights": flights_clean,
                 "hotels": hotels_clean,
                 "weather": weather_clean,
