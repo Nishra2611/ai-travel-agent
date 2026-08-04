@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { CloudRain, CloudSun, Droplets, MapPin, Search, Sun, Thermometer, Umbrella } from "lucide-react";
+import { useGlobalState } from "../context/GlobalState";
 import {
   EmptyState,
   ErrorBanner,
@@ -12,24 +13,7 @@ import {
   Shimmer,
 } from "./shared/TravelUI";
 
-const API_BASE = "http://localhost:8000";
-
-function buildMockWeather(days) {
-  const conditions = ["Sunny", "Partly cloudy", "Cloudy", "Light rain", "Sunny"];
-  const today = new Date();
-  return Array.from({ length: days }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    return {
-      date: d.toISOString().split("T")[0],
-      condition: conditions[i % conditions.length],
-      temp_min: 11 + (i % 3),
-      temp_max: 19 + (i % 4),
-      rain_chance_pct: [10, 20, 65, 30, 5][i % 5],
-      humidity_pct: 55 + (i % 3) * 8,
-    };
-  });
-}
+const API_BASE = "http://localhost:8001";
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
@@ -76,39 +60,47 @@ function WeatherCard({ day, globalMin, globalMax }) {
 }
 
 export default function WeatherSearch() {
-  const [city, setCity] = useState("London");
+  const { globalCity } = useGlobalState();
+  const [localCity, setLocalCity] = useState(globalCity || "Paris");
   const [days, setDays] = useState(5);
   const [forecast, setForecast] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [lastCity, setLastCity] = useState("London");
+  const [lastCity, setLastCity] = useState("");
 
   const doSearch = useCallback(async () => {
+    if (!localCity.trim()) {
+      setForecast([]);
+      setLastCity("");
+      return;
+    }
     setLoading(true);
     setError(null);
-    setLastCity(city);
+    setLastCity(localCity);
 
     try {
-      const qs = new URLSearchParams({ city, days });
+      const qs = new URLSearchParams({ city: localCity, days });
       const res = await fetch(`${API_BASE}/api/trip/weather?${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setForecast(Array.isArray(data) && data.length ? data : []);
       if (Array.isArray(data) && data.length === 0) {
-        setError("No forecast available for this city. Check the city name or API key.");
+        setError("No live forecast available for this city. Check the city name.");
       }
     } catch {
-      setError("Could not reach the server. Showing sample results.");
-      setForecast(buildMockWeather(days));
+      setError("Could not load live weather. Check the backend connection.");
+      setForecast([]);
     } finally {
       setLoading(false);
     }
-  }, [city, days]);
+  }, [globalCity, days]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    doSearch();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const delay = setTimeout(() => {
+      doSearch();
+    }, 500);
+    return () => clearTimeout(delay);
+  }, [localCity, days, doSearch]);
 
   const allTemps = forecast.flatMap((d) => [d.temp_min, d.temp_max]);
   const globalMin = allTemps.length ? Math.min(...allTemps) : 0;
@@ -121,13 +113,13 @@ export default function WeatherSearch() {
     <div className="planner-page">
       <PageHeader
         eyebrow="Forecast"
-        title={`Weather in ${lastCity}`}
+        title={lastCity ? `Weather in ${lastCity}` : "Weather"}
         subtitle="Plan around temperature, rain chance, and humidity before you book."
         meta={`${forecast.length} day${forecast.length !== 1 ? "s" : ""}`}
       />
 
-      <SearchPanel columns="2fr 1fr 1fr">
-        <SearchInput label="City" icon={MapPin} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. London" />
+      <SearchPanel columns="1fr 1fr 1fr">
+        <SearchInput type="text" label="City" icon={MapPin} value={localCity} onChange={(e) => setLocalCity(e.target.value)} />
         <SearchSelect label="Days" icon={CloudSun} value={days} onChange={(e) => setDays(Number(e.target.value))}>
           {[3, 5, 7, 8].map((n) => (
             <option key={n} value={n}>{n} days</option>
@@ -141,7 +133,7 @@ export default function WeatherSearch() {
       <ErrorBanner msg={error} />
 
       {loading ? (
-        <Shimmer label={`Checking the skies over ${city}`} />
+        <Shimmer label={localCity ? `Checking the skies over ${localCity}` : "Checking the skies"} />
       ) : forecast.length === 0 ? (
         <EmptyState icon={CloudSun} title="No forecast data to show." hint="Try a different city or a shorter forecast window." />
       ) : (

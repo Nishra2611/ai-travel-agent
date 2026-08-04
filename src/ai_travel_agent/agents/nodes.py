@@ -191,15 +191,128 @@ def allocate_budget(state: TravelState) -> dict[str, Any]:
 # week 8
 
 
+IATA_MAP = {
+    # Asia
+    "mumbai": "BOM",
+    "delhi": "DEL",
+    "new delhi": "DEL",
+    "bangalore": "BLR",
+    "bengaluru": "BLR",
+    "chennai": "MAA",
+    "kolkata": "CCU",
+    "hyderabad": "HYD",
+    "ahmedabad": "AMD",
+    "pune": "PNQ",
+    "jaipur": "JAI",
+    "goa": "GOI",
+    "kochi": "COK",
+    "lucknow": "LKO",
+    "varanasi": "VNS",
+    "amritsar": "ATQ",
+    "tokyo": "NRT",
+    "osaka": "KIX",
+    "seoul": "ICN",
+    "beijing": "PEK",
+    "shanghai": "PVG",
+    "hong kong": "HKG",
+    "singapore": "SIN",
+    "bangkok": "BKK",
+    "kuala lumpur": "KUL",
+    "jakarta": "CGK",
+    "bali": "DPS",
+    "denpasar": "DPS",
+    "hanoi": "HAN",
+    "ho chi minh": "SGN",
+    "manila": "MNL",
+    "taipei": "TPE",
+    # Middle East
+    "dubai": "DXB",
+    "abu dhabi": "AUH",
+    "doha": "DOH",
+    "riyadh": "RUH",
+    "istanbul": "IST",
+    # Europe
+    "london": "LHR",
+    "paris": "CDG",
+    "rome": "FCO",
+    "milan": "MXP",
+    "barcelona": "BCN",
+    "madrid": "MAD",
+    "amsterdam": "AMS",
+    "berlin": "BER",
+    "munich": "MUC",
+    "frankfurt": "FRA",
+    "vienna": "VIE",
+    "zurich": "ZRH",
+    "prague": "PRG",
+    "lisbon": "LIS",
+    "athens": "ATH",
+    "dublin": "DUB",
+    "reykjavik": "KEF",
+    "moscow": "SVO",
+    "stockholm": "ARN",
+    "copenhagen": "CPH",
+    "oslo": "OSL",
+    "helsinki": "HEL",
+    # Americas
+    "new york": "JFK",
+    "los angeles": "LAX",
+    "san francisco": "SFO",
+    "chicago": "ORD",
+    "miami": "MIA",
+    "las vegas": "LAS",
+    "toronto": "YYZ",
+    "vancouver": "YVR",
+    "mexico city": "MEX",
+    "cancun": "CUN",
+    "sao paulo": "GRU",
+    "rio de janeiro": "GIG",
+    "buenos aires": "EZE",
+    "lima": "LIM",
+    "bogota": "BOG",
+    # Africa
+    "cairo": "CAI",
+    "cape town": "CPT",
+    "johannesburg": "JNB",
+    "nairobi": "NBO",
+    "marrakech": "RAK",
+    "casablanca": "CMN",
+    # Oceania
+    "sydney": "SYD",
+    "melbourne": "MEL",
+    "auckland": "AKL",
+    "perth": "PER",
+    "brisbane": "BNE",
+}
+
+
+def _get_iata(city: str) -> str:
+    city_clean = city.strip().lower()
+    for key, iata in IATA_MAP.items():
+        if city_clean.startswith(key) or key in city_clean:
+            return iata
+    # fallback: grab first word, max 3 chars
+    first_word = city_clean.split(",")[0].split(" ")[0]
+    return first_word[:3].upper()
+
+
 def search_flights(state: TravelState) -> dict[str, Any]:
     prefs = _prefs(state)
+    allocation = state.get("budget_allocation") or {}
+    allocs = allocation.get("allocations", {})
+    flight_budget = allocs.get("flights", {}).get("amount")
+
+    dest = prefs.get("destination", "")
+    dest_iata = _get_iata(dest)
+
     result, err = _safe_run(
         "FlightSearch",
         _flight_tool._run,
-        origin=prefs.get("origin") or "BOM",
-        destination=prefs.get("destination", ""),
+        origin=prefs.get("origin") or "JFK",  # generic fallback
+        destination=dest_iata,
         departure_date=str(prefs.get("start_date") or "2025-12-10"),
         adults=prefs.get("num_travelers", 1),
+        max_price=flight_budget,
     )
     if err or not result:
         return {"flight_results": [], "flight_error": err or "no results"}
@@ -208,13 +321,31 @@ def search_flights(state: TravelState) -> dict[str, Any]:
 
 def search_hotels(state: TravelState) -> dict[str, Any]:
     prefs = _prefs(state)
+    allocation = state.get("budget_allocation") or {}
+    allocs = allocation.get("allocations", {})
+    hotel_budget = allocs.get("accommodation", {}).get("amount")
+    duration = int(prefs.get("duration_days") or 5)
+    max_ppn = (hotel_budget / duration) if hotel_budget and duration > 0 else None
+    check_in = str(prefs.get("start_date") or "2025-12-10")
+    check_out = str(prefs.get("end_date") or "")
+    if not check_out:
+        from datetime import datetime, timedelta
+
+        try:
+            ci = datetime.strptime(check_in, "%Y-%m-%d")
+            co = ci + timedelta(days=duration)
+            check_out = co.strftime("%Y-%m-%d")
+        except ValueError:
+            check_out = "2025-12-15"
+
     result, err = _safe_run(
         "HotelSearch",
         _hotel_tool._run,
         city=prefs.get("destination", ""),
-        check_in=str(prefs.get("start_date") or "2025-12-10"),
-        check_out=str(prefs.get("end_date") or "2025-12-15"),
+        check_in=check_in,
+        check_out=check_out,
         adults=prefs.get("num_travelers", 2),
+        max_price_per_night=max_ppn,
     )
     if err or not result:
         return {"hotel_results": [], "hotel_error": err or "no results"}
@@ -223,11 +354,14 @@ def search_hotels(state: TravelState) -> dict[str, Any]:
 
 def find_attractions(state: TravelState) -> dict[str, Any]:
     prefs = _prefs(state)
+    duration_days = int(prefs.get("duration_days") or 5)
+    limit = max(30, duration_days * 4)
+
     result, err = _safe_run(
         "AttractionFinder",
         _attraction_tool._run,
         city=prefs.get("destination", ""),
-        limit=15,
+        limit=limit,
     )
     if err or not result:
         return {"attraction_results": [], "attraction_error": err or "no results"}
@@ -237,12 +371,15 @@ def find_attractions(state: TravelState) -> dict[str, Any]:
 def find_restaurants(state: TravelState) -> dict[str, Any]:
     prefs = _prefs(state)
     dietary = prefs.get("dietary_restrictions") or []
+    duration_days = int(prefs.get("duration_days") or 5)
+    limit = max(20, duration_days * 2)
+
     result, err = _safe_run(
         "RestaurantFinder",
         _restaurant_tool._run,
         city=prefs.get("destination", ""),
         cuisine=dietary[0] if dietary else None,
-        limit=10,
+        limit=limit,
     )
     if err or not result:
         return {"restaurant_results": [], "restaurant_error": err or "no results"}
@@ -264,7 +401,16 @@ def check_weather(state: TravelState) -> dict[str, Any]:
 
 def track_budget(state: TravelState) -> dict[str, Any]:
     prefs = _prefs(state)
-    trip_id = state.get("trip_id", f"trip_{uuid.uuid4().hex[:8]}")
+    trip_id = state.get("trip_id") or f"trip_{uuid.uuid4().hex[:8]}"
+
+    # Reset the ledger before adding expenses for this run
+    _safe_run(
+        "BudgetTracker.reset",
+        _budget_tool._run,
+        trip_id=trip_id,
+        action="reset",
+    )
+
     total_budget = prefs.get("budget_usd")
     if total_budget:
         _safe_run(
@@ -397,6 +543,7 @@ def assemble_output(state: TravelState) -> dict[str, Any]:
         "restaurants": state.get("restaurant_results") or [],
         "weather": state.get("weather_results") or [],
         "budget": state.get("budget_summary") or {},
+        "budget_is_default": prefs.get("budget_usd") is None,
         # week 8
         "budget_allocation": state.get("budget_allocation"),
         "budget_tradeoffs": state.get("budget_tradeoffs"),

@@ -39,7 +39,8 @@ def tool():
 
 def test_returns_empty_when_api_key_missing(tool, monkeypatch):
     monkeypatch.delenv("OPENWEATHERMAP_API_KEY", raising=False)
-    assert tool._run(city="London", days=5) == []
+    with patch.object(tool, "_open_meteo", return_value=[]):
+        assert tool._run(city="London", days=5) == []
 
 
 def test_returns_empty_when_geocode_fails(tool, monkeypatch):
@@ -126,6 +127,7 @@ def test_graceful_failure_on_http_error(tool, monkeypatch):
             "ai_travel_agent.tools.weather_checker.geocode", return_value=MOCK_GEOCODE
         ),
         patch("httpx.get", return_value=mock_resp),
+        patch.object(tool, "_open_meteo", return_value=[]),
     ):
         result = tool._run(city="London", days=5)
 

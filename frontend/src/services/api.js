@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8000";
+const BASE = "http://localhost:8001";
 
 export async function refineTrip(sessionId, instruction) {
   const r = await fetch(`${BASE}/refine`, {
@@ -6,6 +6,10 @@ export async function refineTrip(sessionId, instruction) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, instruction }),
   });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.detail || `Refinement failed with HTTP ${r.status}`);
+  }
   return r.json();
 }
 

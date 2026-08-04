@@ -2,9 +2,12 @@
 Full API test — Weeks 1-12 endpoints.
 Run: poetry run python test_api.py
 """
+import csv
 import json
 import sys
 import time
+from pathlib import Path
+
 import httpx
 
 BASE = "http://localhost:8000"
@@ -210,9 +213,6 @@ else:
 
 # ── 10. Week 12 Baseline (summary) ──────────────────────────
 section("WEEK 12 BASELINE RESULTS SUMMARY")
-
-from pathlib import Path
-import csv
 
 csv_path = Path("tests/evaluation/baseline_results.csv")
 if csv_path.exists():

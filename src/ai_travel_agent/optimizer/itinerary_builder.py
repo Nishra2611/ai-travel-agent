@@ -50,7 +50,11 @@ def _weather_ok(activity: dict[str, Any], forecast: dict[str, Any] | None) -> bo
         return True
     if not _is_outdoor(activity):
         return True
-    rain = forecast.get("rain_chance", forecast.get("rain_chance_pct", 0))
+    rain = forecast.get("rain_chance")
+    if rain is None:
+        rain = forecast.get("rain_chance_pct", 0)
+    if rain is None:
+        rain = 0
     if isinstance(rain, float) and rain <= 1.0:
         rain = rain * 100
     return float(rain) < 60

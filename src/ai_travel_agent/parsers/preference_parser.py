@@ -146,9 +146,11 @@ class PreferenceParserTool(BaseTravelTool):
         if m:
             days = int(m.group(1))
 
-        # budget: $1500 or 1500 usd or plain number ≥100 after days keyword
+        # budget: $1500 or 1500$ or 1500 usd or plain number ≥100 after days keyword
         budget: float | None = None
-        m = re.search(r"\$([\d,]+)", text)
+        m = re.search(r"(?:^|\s)\$\s*([\d,]+)", text)
+        if not m:
+            m = re.search(r"([\d,]+)\s*\$", text)
         if not m:
             m = re.search(r"([\d,]+)\s*(?:usd|dollars?)", text, re.I)
         if not m:
@@ -163,20 +165,52 @@ class PreferenceParserTool(BaseTravelTool):
         if m:
             budget = float(m.group(1).replace(",", ""))
 
-        # destination: first capitalized word(s) before digits
+        # ── destination extraction ────────────────────────────────────────
+        # Common noise words to strip from candidate destinations
+        _noise = r"\b(trip|travel|visit|holiday|vacation|tour|days?|under|budget|cheap|luxury)\b"
+
         destination = "Unknown"
+
+        # Strategy 1: city at the START  ("sydney 8 days $800")
         m = re.match(r"([A-Za-z][A-Za-z\s]{1,30}?)(?:\s+\d|\s*$)", text)
         if m:
-            candidate = m.group(1).strip()
-            # remove trailing common words
-            candidate = re.sub(
-                r"\s*(trip|travel|visit|holiday|vacation|tour)\s*$",
-                "",
-                candidate,
-                flags=re.I,
-            ).strip()
-            if candidate:
+            candidate = re.sub(_noise, "", m.group(1), flags=re.I).strip()
+            if candidate and len(candidate) >= 2:
                 destination = candidate.title()
+
+        # Strategy 2: city at the END  ("800$ 8 days sydney")
+        if destination == "Unknown":
+            m = re.search(
+                r"(?:days?|day)\s+([A-Za-z][A-Za-z\s]{1,30}?)\s*$", text, re.I
+            )
+            if m:
+                candidate = re.sub(_noise, "", m.group(1), flags=re.I).strip()
+                if candidate and len(candidate) >= 2:
+                    destination = candidate.title()
+
+        # Strategy 3: any multi-letter alphabetic token that isn't a common keyword
+        if destination == "Unknown":
+            tokens = re.findall(r"\b([A-Za-z]{3,})\b", text)
+            skip = {
+                "days",
+                "day",
+                "trip",
+                "travel",
+                "visit",
+                "holiday",
+                "vacation",
+                "tour",
+                "under",
+                "budget",
+                "cheap",
+                "luxury",
+                "usd",
+                "dollars",
+            }
+            for tok in tokens:
+                if tok.lower() not in skip:
+                    destination = tok.title()
+                    break
 
         # travel style from keywords
         style: TravelStyle = TravelStyle.MODERATE
