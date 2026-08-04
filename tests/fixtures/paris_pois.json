@@ -1,0 +1,21 @@
+{
+  "city": "Paris",
+  "points": [
+    {"id":"p1","name":"Louvre","latitude":48.8606,"longitude":2.3376},
+    {"id":"p2","name":"Tuileries","latitude":48.8635,"longitude":2.3270},
+    {"id":"p3","name":"Musee dOrsay","latitude":48.8600,"longitude":2.3266},
+    {"id":"p4","name":"Place Vendome","latitude":48.8675,"longitude":2.3295},
+    {"id":"p5","name":"Opera","latitude":48.8719,"longitude":2.3316},
+
+    {"id":"p6","name":"Eiffel Tower","latitude":48.8584,"longitude":2.2945},
+    {"id":"p7","name":"Trocadero","latitude":48.8629,"longitude":2.2870},
+    {"id":"p8","name":"Champ de Mars","latitude":48.8559,"longitude":2.2986},
+    {"id":"p9","name":"Bir Hakeim","latitude":48.8530,"longitude":2.2890},
+
+    {"id":"p10","name":"Notre Dame","latitude":48.8530,"longitude":2.3499},
+    {"id":"p11","name":"Sainte Chapelle","latitude":48.8554,"longitude":2.3450},
+    {"id":"p12","name":"Pantheon","latitude":48.8462,"longitude":2.3460},
+
+    {"id":"p13","name":"Chateau de Vincennes","latitude":48.8440,"longitude":2.4340}
+  ]
+}

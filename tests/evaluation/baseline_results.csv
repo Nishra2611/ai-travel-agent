@@ -1,0 +1,26 @@
+id,category,destination,duration_days,budget_usd,planning_time_ms,judge_time_ms,error,feasibility,budget_accuracy,geo_efficiency,weather_match,completeness,priority_adherence,walking_balance,time_realism,activity_diversity,preference_match
+beach_01,beach,Bali,5,2000,7010.9,0.1,,4,3,3,3,3,3,3,3,3,3
+beach_02,beach,Maldives,4,3500,2497.1,0.1,,4,3,3,3,3,3,3,3,3,3
+beach_03,beach,Phuket,7,1500,2493.4,0.1,,4,3,3,3,3,3,3,3,3,3
+beach_04,beach,Cancun,5,2500,2534.2,0.1,,4,3,3,3,3,3,3,3,3,3
+city_01,city,Paris,5,3000,2528.1,0.1,,4,3,3,3,3,3,3,3,3,3
+city_02,city,Tokyo,7,4000,2507.5,0.1,,4,3,3,3,3,3,3,3,3,3
+city_03,city,New York,3,1800,2543.3,0.1,,4,3,3,3,3,3,3,3,3,3
+city_04,city,London,6,3500,2549.4,0.1,,4,3,3,3,3,3,3,3,3,3
+adventure_01,adventure,Kathmandu,7,2000,2486.6,0.1,,4,3,3,3,3,3,3,3,3,3
+adventure_02,adventure,San Jose,5,2500,2516.3,0.1,,4,3,3,3,3,3,3,3,3,3
+adventure_03,adventure,Queenstown,4,3000,2594.4,0.1,,4,3,3,3,3,3,3,3,3,3
+adventure_04,adventure,Punta Arenas,7,4000,2567.1,0.1,,4,3,3,3,3,3,3,3,3,3
+family_01,family,Orlando,5,5000,2470.0,0.1,,4,3,3,3,3,3,3,3,3,3
+family_02,family,Barcelona,6,4000,2770.7,0.1,,4,3,3,3,3,3,3,3,3,3
+family_03,family,Singapore,4,3500,2485.8,0.1,,4,3,3,3,3,3,3,3,3,3
+family_04,family,Rome,5,3000,2564.6,0.1,,4,3,3,3,3,3,3,3,3,3
+solo_01,solo,Amsterdam,3,1200,2507.3,0.1,,4,3,3,3,3,3,3,3,3,3
+solo_02,solo,Lisbon,4,1000,2584.9,0.1,,4,3,3,3,3,3,3,3,3,3
+solo_03,solo,Bangkok,5,800,2523.2,0.2,,4,3,3,3,3,3,3,3,3,3
+solo_04,solo,Kyoto,4,1500,2585.9,0.1,,4,3,3,3,3,3,3,3,3,3
+honeymoon_01,honeymoon,Santorini,5,5000,2476.9,0.1,,4,3,3,3,3,3,3,3,3,3
+honeymoon_02,honeymoon,Venice,4,4000,2563.4,0.1,,4,3,3,3,3,3,3,3,3,3
+honeymoon_03,honeymoon,Bora Bora,6,8000,2534.6,0.1,,4,3,3,3,3,3,3,3,3,3
+honeymoon_04,honeymoon,Prague,5,3000,2559.7,0.1,,4,3,3,3,3,3,3,3,3,3
+honeymoon_05,honeymoon,Naples,7,6000,2521.3,0.1,,4,3,3,3,3,3,3,3,3,3

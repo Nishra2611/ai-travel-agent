@@ -1,0 +1,94 @@
+[project]
+name = "ai-travel-agent"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Nishra Gajkandh",email = "nishragajkandh@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "langchain (>=1.3.4,<2.0.0)",
+    "langchain-ollama (>=1.1.0,<2.0.0)",
+    "langgraph (>=1.2.4,<2.0.0)",
+    "pydantic (>=2.13.4,<3.0.0)",
+    "fastapi (>=0.136.3,<0.137.0)",
+    "uvicorn (>=0.49.0,<0.50.0)",
+    "python-dotenv (>=1.2.2,<2.0.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "aiohttp (>=3.14.0,<4.0.0)",
+    "requests (>=2.34.2,<3.0.0)",
+    "redis (>=5.0.0,<6.0.0)",
+    "hiredis (>=2.3.0,<3.0.0)",
+    "fakeredis (>=2.21.0,<3.0.0)",
+    "pydantic-settings (>=2.0.0,<3.0.0)",
+    "cachetools (>=7.1.4,<8.0.0)",
+    "google-search-results (>=2.4.2,<3.0.0)",
+    "tenacity (>=9.1.4,<10.0.0)",
+    "anthropic (>=0.117.0,<1.0.0)",
+    "langgraph-checkpoint-sqlite (>=3.1.0,<4.0.0)",
+    "numpy (>=1.26.0,<2.0.0)",
+    "scikit-learn (>=1.5.0,<2.0.0)",
+    "folium (>=0.20.0,<0.21.0)",
+    "playwright (>=1.61.0,<2.0.0)",
+    "pillow (>=12.3.0,<13.0.0)",
+    "slowapi (>=0.1.9,<0.2.0)",
+    "websockets (>=12.0,<16.0)",
+    "fpdf2 (>=2.7.0,<3.0.0)",
+    "prometheus-fastapi-instrumentator (>=7.0.0,<8.0.0)",
+    "prometheus-client (>=0.20.0,<1.0.0)",
+    "structlog (>=24.1.0,<25.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.0.3,<10.0.0)",
+    "pytest-asyncio (>=1.4.0,<2.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)",
+    "black (>=26.5.1,<27.0.0)",
+    "ruff (>=0.15.16,<0.16.0)",
+    "mypy (>=2.1.0,<3.0.0)",
+    "pre-commit (>=4.6.0,<5.0.0)",
+    "respx (>=0.21.0,<1.0.0)",
+    "locust (>=2.31.0,<3.0.0)",
+    "mutmut (>=3.2.0,<4.0.0)",
+]
+
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["ai_travel_agent.utils.cache", "ai_travel_agent.tools.base", "ai_travel_agent.tools.dummy_tool", "ai_travel_agent.api.main", "ai_travel_agent.maps.travel_map_generator"]
+ignore_errors = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "live_server: needs a real running app, not mocked",
+]
+
+[tool.poetry]
+packages = [
+    { include = "ai_travel_agent", from = "src" }
+]
